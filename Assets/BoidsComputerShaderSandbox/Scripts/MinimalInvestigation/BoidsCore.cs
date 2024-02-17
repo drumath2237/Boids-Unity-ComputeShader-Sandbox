@@ -77,6 +77,15 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             return alignForce + separationForce + cohesionForce;
         }
 
+        /// <summary>
+        /// 整列。影響範囲の平均速度ベクトルへの自分の速度ベクトルへの差分を算出する
+        /// </summary>
+        /// <param name="positions"></param>
+        /// <param name="velocities"></param>
+        /// <param name="range"></param>
+        /// <param name="index"></param>
+        /// <param name="deltaTime"></param>
+        /// <returns>整列処理によって算出されたaccの差分</returns>
         private static Vector3 AlignForce(
             ReadOnlySpan<Vector3> positions,
             ReadOnlySpan<Vector3> velocities,
@@ -85,7 +94,31 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             float deltaTime
         )
         {
-            return Vector3.zero;
+            if (positions.Length != velocities.Length)
+            {
+                return Vector3.zero;
+            }
+
+            var sumOfVelocities = new Vector3();
+            var insightCount = 0;
+            for (var i = 0; i < velocities.Length; i++)
+            {
+                if (i == index || !WithinRange(positions[index], positions[i], range))
+                {
+                    continue;
+                }
+
+                sumOfVelocities += velocities[i];
+                insightCount++;
+            }
+
+            if (insightCount == 0)
+            {
+                return Vector3.zero;
+            }
+
+            var averageVelocity = sumOfVelocities / insightCount;
+            return averageVelocity - velocities[index];
         }
 
         private static Vector3 SeparationForce(
