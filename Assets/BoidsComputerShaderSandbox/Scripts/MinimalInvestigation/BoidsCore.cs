@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace BoidsComputeShaderSandbox.MinimalInvestigation
 {
@@ -23,6 +24,7 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         {
             _options = options;
 
+            // todo: 初期位置と初期速度はランダムなVec3を生成
             _positions = new Vector3[options.Count];
             _velocities = new Vector3[options.Count];
             _accelerations = new Vector3[options.Count];
@@ -30,12 +32,25 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
 
         public void Update(float deltaTime)
         {
-            for (var i = 0; i < count; i++)
+            for (var i = 0; i < _options.Count; i++)
             {
-                // 内部でCalcIndividualAccを使ってacc配列を更新
+                var acc = CalcIndividualAcc(
+                    _positions.AsSpan(),
+                    _velocities.AsSpan(),
+                    _accelerations.AsSpan(),
+                    i,
+                    deltaTime
+                );
+                _accelerations[i] = acc;
             }
-            
-            // 全部のaccが計算できたらaccをもとにvel,posを更新
+
+            for (var i = 0; i < _options.Count; i++)
+            {
+                // todo: 速度制限や境界処理の追加
+                _velocities[i] += _accelerations[i];
+                _positions[i] += _velocities[i];
+                _accelerations[i] = Vector3.zero;
+            }
         }
 
         /// <summary>
@@ -48,12 +63,54 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// <param name="index">計算対象のboidsのindex</param>
         /// <param name="deltaTime">前回更新からの経過時間</param>
         /// <returns></returns>
-        public static Vector3 CalcIndividualAcc(Vector3[] positions, Vector3[] velocities, Vector3[] accelerations,int index, float deltaTime)
+        private static Vector3 CalcIndividualAcc(
+            ReadOnlySpan<Vector3> positions,
+            ReadOnlySpan<Vector3> velocities,
+            ReadOnlySpan<Vector3> accelerations,
+            int index,
+            float deltaTime
+        )
         {
-            // todo
-            return Vector3.Zero();
+            var alignForce = AlignForce(positions, velocities, accelerations, index, deltaTime);
+            var separationForce = SeparationForce(positions, velocities, accelerations, index, deltaTime);
+            var cohesionForce = CohesionForce(positions, velocities, accelerations, index, deltaTime);
+
+            return alignForce + separationForce + cohesionForce;
         }
-        
+
+        private static Vector3 AlignForce(
+            ReadOnlySpan<Vector3> positions,
+            ReadOnlySpan<Vector3> velocities,
+            ReadOnlySpan<Vector3> accelerations,
+            int index,
+            float deltaTime
+        )
+        {
+            return Vector3.zero;
+        }
+
+        private static Vector3 SeparationForce(
+            ReadOnlySpan<Vector3> positions,
+            ReadOnlySpan<Vector3> velocities,
+            ReadOnlySpan<Vector3> accelerations,
+            int index,
+            float deltaTime
+        )
+        {
+            return Vector3.zero;
+        }
+
+        private static Vector3 CohesionForce(
+            ReadOnlySpan<Vector3> positions,
+            ReadOnlySpan<Vector3> velocities,
+            ReadOnlySpan<Vector3> accelerations,
+            int index,
+            float deltaTime
+        )
+        {
+            return Vector3.zero;
+        }
+
 
         private static bool WithinRange(Vector3 self, Vector3 target, float range)
             => (target - self).sqrMagnitude <= range * range;
