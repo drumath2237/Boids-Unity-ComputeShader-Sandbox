@@ -34,14 +34,13 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         {
             for (var i = 0; i < _options.Count; i++)
             {
-                var acc = CalcIndividualAcc(
+                _accelerations[i] += CalcIndividualAccChange(
                     _positions.AsSpan(),
                     _velocities.AsSpan(),
-                    _accelerations.AsSpan(),
+                    _options.InsightRange,
                     i,
                     deltaTime
                 );
-                _accelerations[i] = acc;
             }
 
             for (var i = 0; i < _options.Count; i++)
@@ -59,21 +58,21 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// </summary>
         /// <param name="positions">boidsの位置配列</param>
         /// <param name="velocities">boidsの速度配列</param>
-        /// <param name="accelerations">boidsの加速度配列</param>
+        /// <param name="range">影響を与えるboidの範囲</param>
         /// <param name="index">計算対象のboidsのindex</param>
         /// <param name="deltaTime">前回更新からの経過時間</param>
         /// <returns></returns>
-        private static Vector3 CalcIndividualAcc(
+        private static Vector3 CalcIndividualAccChange(
             ReadOnlySpan<Vector3> positions,
             ReadOnlySpan<Vector3> velocities,
-            ReadOnlySpan<Vector3> accelerations,
+            float range,
             int index,
             float deltaTime
         )
         {
-            var alignForce = AlignForce(positions, velocities, accelerations, index, deltaTime);
-            var separationForce = SeparationForce(positions, velocities, accelerations, index, deltaTime);
-            var cohesionForce = CohesionForce(positions, velocities, accelerations, index, deltaTime);
+            var alignForce = AlignForce(positions, velocities, range, index, deltaTime);
+            var separationForce = SeparationForce(positions, velocities, range, index, deltaTime);
+            var cohesionForce = CohesionForce(positions, velocities, range, index, deltaTime);
 
             return alignForce + separationForce + cohesionForce;
         }
@@ -81,7 +80,7 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         private static Vector3 AlignForce(
             ReadOnlySpan<Vector3> positions,
             ReadOnlySpan<Vector3> velocities,
-            ReadOnlySpan<Vector3> accelerations,
+            float range,
             int index,
             float deltaTime
         )
@@ -92,26 +91,34 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         private static Vector3 SeparationForce(
             ReadOnlySpan<Vector3> positions,
             ReadOnlySpan<Vector3> velocities,
-            ReadOnlySpan<Vector3> accelerations,
+            float range,
             int index,
             float deltaTime
         )
         {
-            return Vector3.zero;
+            throw new NotImplementedException();
         }
 
         private static Vector3 CohesionForce(
             ReadOnlySpan<Vector3> positions,
             ReadOnlySpan<Vector3> velocities,
-            ReadOnlySpan<Vector3> accelerations,
+            float range,
             int index,
             float deltaTime
         )
         {
-            return Vector3.zero;
+            throw new NotImplementedException();
         }
 
 
+        /// <summary>
+        /// 対象のベクトルの指定範囲内に
+        /// ベクトルが入っているかの判定
+        /// </summary>
+        /// <param name="self">対象のベクトル</param>
+        /// <param name="target">検査対象のベクトル</param>
+        /// <param name="range">指定範囲</param>
+        /// <returns>判定結果</returns>
         private static bool WithinRange(Vector3 self, Vector3 target, float range)
             => (target - self).sqrMagnitude <= range * range;
     }
