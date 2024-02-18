@@ -33,6 +33,15 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         [SerializeField]
         private float fleeThreshold = 1f;
 
+        [Space, Header("Force Weights")]
+        [SerializeField]
+        private float alignWeight = 1f;
+
+        [SerializeField]
+        private float separationWeight = 1f;
+
+        [SerializeField]
+        private float cohesionWeight = 1f;
 
         private void Start()
         {
@@ -67,7 +76,14 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
                 return;
             }
 
-            _boidsCore.Update(Time.deltaTime * timeScale);
+            var forceWeights = new ForceWeights
+            {
+                AlignWeight = alignWeight,
+                SeparationWeight = separationWeight,
+                CohesionWeight = cohesionWeight
+            };
+
+            _boidsCore.Update(Time.deltaTime * timeScale, forceWeights);
             for (var i = 0; i < _boidsCore.Count; i++)
             {
                 _boidsTransforms[i].transform.position = _boidsCore.Positions[i];

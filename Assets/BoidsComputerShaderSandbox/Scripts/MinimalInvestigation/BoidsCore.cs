@@ -15,6 +15,13 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         public float FleeThreshold { get; set; }
     }
 
+    public struct ForceWeights
+    {
+        public float AlignWeight { get; set; }
+        public float SeparationWeight { get; set; }
+        public float CohesionWeight { get; set; }
+    }
+
     public class BoidsCore
     {
         private readonly BoidsOptions _options;
@@ -48,7 +55,7 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             }
         }
 
-        public void Update(float deltaTime)
+        public void Update(float deltaTime, ForceWeights forceWeights)
         {
             for (var i = 0; i < Count; i++)
             {
@@ -57,7 +64,8 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
                     _velocities.AsSpan(),
                     InsightRange,
                     i,
-                    FleeThreshold
+                    FleeThreshold,
+                    forceWeights
                 );
             }
 
@@ -85,20 +93,24 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// <param name="range">影響を与えるboidの範囲</param>
         /// <param name="index">計算対象のboidsのindex</param>
         /// <param name="fleeThreshold">分離が行われる近さの閾値</param>
+        /// <param name="forceWeights"></param>
         /// <returns></returns>
         private static Vector3 CalcIndividualAccChange(
             ReadOnlySpan<Vector3> positions,
             ReadOnlySpan<Vector3> velocities,
             float range,
             int index,
-            float fleeThreshold
+            float fleeThreshold,
+            ForceWeights forceWeights
         )
         {
             var alignForce = AlignForce(positions, velocities, range, index);
             var separationForce = SeparationForce(positions, velocities, range, index, fleeThreshold);
             var cohesionForce = CohesionForce(positions, velocities, range, index);
 
-            return alignForce + separationForce + cohesionForce;
+            return alignForce * forceWeights.AlignWeight
+                   + separationForce * forceWeights.SeparationWeight
+                   + cohesionForce * forceWeights.CohesionWeight;
         }
 
         /// <summary>

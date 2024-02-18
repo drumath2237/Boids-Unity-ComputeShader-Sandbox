@@ -407,9 +407,12 @@ MonoBehaviour:
   insightRange: 4
   maxVelocity: 5
   maxAcceleration: 5
-  boundingSize: {x: 7, y: 7, z: 7}
+  boundingSize: {x: 10, y: 10, z: 10}
   timeScale: 1
   fleeThreshold: 0.75
+  alignWeight: 3
+  separationWeight: 2
+  cohesionWeight: 1
 --- !u!4 &1780185559
 Transform:
   m_ObjectHideFlags: 0
