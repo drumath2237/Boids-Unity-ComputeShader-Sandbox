@@ -156,6 +156,17 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             return Vector3.zero;
         }
 
+        /// <summary>
+        /// 結合。
+        /// 範囲内の平均Positionに対して近づいていくような
+        /// 加速度を算出する。
+        /// </summary>
+        /// <param name="positions"></param>
+        /// <param name="velocities"></param>
+        /// <param name="range"></param>
+        /// <param name="index"></param>
+        /// <param name="deltaTime"></param>
+        /// <returns></returns>
         private static Vector3 CohesionForce(
             ReadOnlySpan<Vector3> positions,
             ReadOnlySpan<Vector3> velocities,
@@ -164,8 +175,34 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             float deltaTime
         )
         {
-            // todo: 処理を実装
-            return Vector3.zero;
+            if (positions.Length != velocities.Length)
+            {
+                return Vector3.zero;
+            }
+
+            var positionSum = Vector3.zero;
+            var sumCount = 0;
+            for (var i = 0; i < positions.Length; i++)
+            {
+                if (i == index || !WithinRange(positions[index], positions[i], range))
+                {
+                    continue;
+                }
+
+                positionSum += positions[i];
+                sumCount++;
+            }
+
+            if (sumCount == 0)
+            {
+                return Vector3.zero;
+            }
+
+            var averagePosition = positionSum / sumCount;
+            var dirPosition = averagePosition - positions[index];
+            var seekForce = dirPosition - velocities[index];
+
+            return seekForce;
         }
 
         private void BorderTreatment(
