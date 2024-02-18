@@ -6,8 +6,7 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
     public struct BoidsOptions
     {
         public int Count { get; set; }
-        public float BoundingWidth { get; set; }
-        public float BoundingHeight { get; set; }
+        public Vector3 BoundingSize { get; set; }
         public float MaxVelocity { get; set; }
         public float MaxAcceleration { get; set; }
         public float InsightRange { get; set; }
@@ -19,6 +18,12 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         private readonly Vector3[] _positions;
         private readonly Vector3[] _velocities;
         private readonly Vector3[] _accelerations;
+
+        public int Count => _options.Count;
+        public Vector3 BoundingSize => _options.BoundingSize;
+        public float InsightRange => _options.InsightRange;
+        public float MaxVelocity => _options.MaxVelocity;
+        public float MaxAcceleration => _options.MaxAcceleration;
 
         public BoidsCore(BoidsOptions options)
         {
@@ -32,22 +37,29 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
 
         public void Update(float deltaTime)
         {
-            for (var i = 0; i < _options.Count; i++)
+            for (var i = 0; i < Count; i++)
             {
                 _accelerations[i] += CalcIndividualAccChange(
                     _positions.AsSpan(),
                     _velocities.AsSpan(),
-                    _options.InsightRange,
+                    InsightRange,
                     i,
                     deltaTime
                 );
             }
 
-            for (var i = 0; i < _options.Count; i++)
+            for (var i = 0; i < Count; i++)
             {
                 // todo: 速度制限や境界処理の追加
+                _accelerations[i] = LimitVector(_accelerations[i], MaxAcceleration);
+
                 _velocities[i] += _accelerations[i];
+                _velocities[i] = LimitVector(_velocities[i], MaxVelocity);
+
                 _positions[i] += _velocities[i];
+
+                BorderTreatment(BoundingSize, i);
+
                 _accelerations[i] = Vector3.zero;
             }
         }
@@ -129,7 +141,8 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             float deltaTime
         )
         {
-            throw new NotImplementedException();
+            // todo: 処理を実装
+            return Vector3.zero;
         }
 
         private static Vector3 CohesionForce(
@@ -140,8 +153,63 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             float deltaTime
         )
         {
-            throw new NotImplementedException();
+            // todo: 処理を実装
+            return Vector3.zero;
         }
+
+        private void BorderTreatment(
+            Vector3 boundingSize,
+            int index
+        )
+        {
+            var pos = _positions[index];
+            var vel = _velocities[index];
+
+            if (pos.x > boundingSize.x)
+            {
+                pos = WithX(pos, boundingSize.x);
+                vel = WithX(vel, -vel.x);
+            }
+            else if (pos.x < -boundingSize.x)
+            {
+                pos = WithX(pos, -boundingSize.x);
+                vel = WithX(vel, -vel.x);
+            }
+
+            if (pos.y > boundingSize.y)
+            {
+                pos = WithY(pos, boundingSize.y);
+                vel = WithY(vel, -vel.y);
+            }
+            else if (pos.y < -boundingSize.y)
+            {
+                pos = WithY(pos, -boundingSize.y);
+                vel = WithY(vel, -vel.y);
+            }
+
+            if (pos.z > boundingSize.z)
+            {
+                pos = WithZ(pos, boundingSize.z);
+                vel = WithZ(vel, -vel.z);
+            }
+            else if (pos.z < -boundingSize.z)
+            {
+                pos = WithZ(pos, -boundingSize.z);
+                vel = WithZ(vel, -vel.z);
+            }
+
+            _positions[index] = pos;
+            _velocities[index] = vel;
+        }
+
+        private static Vector3 WithX(Vector3 vec, float x)
+            => new Vector3(x, vec.y, vec.z);
+
+        private static Vector3 WithY(Vector3 vec, float y)
+            => new Vector3(vec.x, y, vec.z);
+
+        private static Vector3 WithZ(Vector3 vec, float z)
+            => new Vector3(vec.x, vec.y, z);
 
 
         /// <summary>
@@ -154,5 +222,15 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// <returns>判定結果</returns>
         private static bool WithinRange(Vector3 self, Vector3 target, float range)
             => (target - self).sqrMagnitude <= range * range;
+
+        /// <summary>
+        /// ベクトル長がmaxLengthを超えてたら
+        /// 長さをmaxLengthに抑える関数
+        /// </summary>
+        /// <param name="target">処理対象のベクトル</param>
+        /// <param name="maxLength">最大長</param>
+        /// <returns>cropされたベクトル</returns>
+        private static Vector3 LimitVector(Vector3 target, float maxLength)
+            => target.sqrMagnitude <= maxLength * maxLength ? target : target * (maxLength / target.sqrMagnitude);
     }
 }
