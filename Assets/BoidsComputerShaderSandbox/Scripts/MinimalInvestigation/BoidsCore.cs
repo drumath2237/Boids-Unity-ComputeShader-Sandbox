@@ -57,7 +57,6 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
                     _velocities.AsSpan(),
                     InsightRange,
                     i,
-                    deltaTime,
                     FleeThreshold
                 );
             }
@@ -85,7 +84,6 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// <param name="velocities">boidsの速度配列</param>
         /// <param name="range">影響を与えるboidの範囲</param>
         /// <param name="index">計算対象のboidsのindex</param>
-        /// <param name="deltaTime">前回更新からの経過時間</param>
         /// <param name="fleeThreshold">分離が行われる近さの閾値</param>
         /// <returns></returns>
         private static Vector3 CalcIndividualAccChange(
@@ -93,13 +91,12 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             ReadOnlySpan<Vector3> velocities,
             float range,
             int index,
-            float deltaTime,
             float fleeThreshold
         )
         {
-            var alignForce = AlignForce(positions, velocities, range, index, deltaTime);
-            var separationForce = SeparationForce(positions, velocities, range, index, deltaTime, fleeThreshold);
-            var cohesionForce = CohesionForce(positions, velocities, range, index, deltaTime);
+            var alignForce = AlignForce(positions, velocities, range, index);
+            var separationForce = SeparationForce(positions, velocities, range, index, fleeThreshold);
+            var cohesionForce = CohesionForce(positions, velocities, range, index);
 
             return alignForce + separationForce + cohesionForce;
         }
@@ -111,14 +108,12 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// <param name="velocities"></param>
         /// <param name="range"></param>
         /// <param name="index"></param>
-        /// <param name="deltaTime"></param>
         /// <returns>整列処理によって算出されたaccの差分</returns>
         private static Vector3 AlignForce(
             ReadOnlySpan<Vector3> positions,
             ReadOnlySpan<Vector3> velocities,
             float range,
-            int index,
-            float deltaTime
+            int index
         )
         {
             if (positions.Length != velocities.Length)
@@ -157,7 +152,6 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// <param name="velocities"></param>
         /// <param name="range"></param>
         /// <param name="index"></param>
-        /// <param name="deltaTime"></param>
         /// <param name="separationThreshold"></param>
         /// <returns></returns>
         private static Vector3 SeparationForce(
@@ -165,7 +159,6 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             ReadOnlySpan<Vector3> velocities,
             float range,
             int index,
-            float deltaTime,
             float separationThreshold
         )
         {
@@ -204,14 +197,12 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// <param name="velocities"></param>
         /// <param name="range"></param>
         /// <param name="index"></param>
-        /// <param name="deltaTime"></param>
         /// <returns></returns>
         private static Vector3 CohesionForce(
             ReadOnlySpan<Vector3> positions,
             ReadOnlySpan<Vector3> velocities,
             float range,
-            int index,
-            float deltaTime
+            int index
         )
         {
             if (positions.Length != velocities.Length)
@@ -289,14 +280,11 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             _velocities[index] = vel;
         }
 
-        private static Vector3 WithX(Vector3 vec, float x)
-            => new Vector3(x, vec.y, vec.z);
+        private static Vector3 WithX(Vector3 vec, float x) => new(x, vec.y, vec.z);
 
-        private static Vector3 WithY(Vector3 vec, float y)
-            => new Vector3(vec.x, y, vec.z);
+        private static Vector3 WithY(Vector3 vec, float y) => new(vec.x, y, vec.z);
 
-        private static Vector3 WithZ(Vector3 vec, float z)
-            => new Vector3(vec.x, vec.y, z);
+        private static Vector3 WithZ(Vector3 vec, float z) => new(vec.x, vec.y, z);
 
 
         /// <summary>
