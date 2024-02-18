@@ -1,5 +1,6 @@
 ﻿using System;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace BoidsComputeShaderSandbox.MinimalInvestigation
 {
@@ -19,6 +20,9 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         private readonly Vector3[] _velocities;
         private readonly Vector3[] _accelerations;
 
+        public Vector3[] Positions => _positions;
+        public Vector3[] Velocities => _velocities;
+
         public int Count => _options.Count;
         public Vector3 BoundingSize => _options.BoundingSize;
         public float InsightRange => _options.InsightRange;
@@ -30,9 +34,16 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             _options = options;
 
             // todo: 初期位置と初期速度はランダムなVec3を生成
-            _positions = new Vector3[options.Count];
-            _velocities = new Vector3[options.Count];
-            _accelerations = new Vector3[options.Count];
+            _positions = new Vector3[Count];
+            _velocities = new Vector3[Count];
+            _accelerations = new Vector3[Count];
+
+            for (var i = 0; i < Count; i++)
+            {
+                _positions[i] = RandomVector3(-BoundingSize, BoundingSize);
+                var maxVelocity3 = new Vector3(MaxVelocity, MaxVelocity, MaxVelocity);
+                _velocities[i] = RandomVector3(-maxVelocity3, maxVelocity3);
+            }
         }
 
         public void Update(float deltaTime)
@@ -232,5 +243,12 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// <returns>cropされたベクトル</returns>
         private static Vector3 LimitVector(Vector3 target, float maxLength)
             => target.sqrMagnitude <= maxLength * maxLength ? target : target * (maxLength / target.sqrMagnitude);
+
+        private static Vector3 RandomVector3(Vector3 min, Vector3 max)
+            => new(
+                Random.Range(min.x, max.x),
+                Random.Range(min.y, max.y),
+                Random.Range(min.z, max.z)
+            );
     }
 }
