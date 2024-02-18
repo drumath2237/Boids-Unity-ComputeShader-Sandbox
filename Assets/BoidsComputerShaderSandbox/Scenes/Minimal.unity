@@ -403,8 +403,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   boidPrefab: {fileID: 3491508281341080955, guid: 1b564c791d273ec409941338b750f4ef, type: 3}
-  boidsCount: 200
-  insightRange: 2
+  boidsCount: 400
+  insightRange: 4
   maxVelocity: 5
   maxAcceleration: 5
   boundingSize: {x: 7, y: 7, z: 7}
