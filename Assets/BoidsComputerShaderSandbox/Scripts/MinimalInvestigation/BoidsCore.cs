@@ -11,6 +11,8 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         public float MaxVelocity { get; set; }
         public float MaxAcceleration { get; set; }
         public float InsightRange { get; set; }
+
+        public float FleeThreshold { get; set; }
     }
 
     public class BoidsCore
@@ -28,12 +30,12 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         public float InsightRange => _options.InsightRange;
         public float MaxVelocity => _options.MaxVelocity;
         public float MaxAcceleration => _options.MaxAcceleration;
+        public float FleeThreshold => _options.FleeThreshold;
 
         public BoidsCore(BoidsOptions options)
         {
             _options = options;
 
-            // todo: 初期位置と初期速度はランダムなVec3を生成
             _positions = new Vector3[Count];
             _velocities = new Vector3[Count];
             _accelerations = new Vector3[Count];
@@ -55,13 +57,13 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
                     _velocities.AsSpan(),
                     InsightRange,
                     i,
-                    deltaTime
+                    deltaTime,
+                    FleeThreshold
                 );
             }
 
             for (var i = 0; i < Count; i++)
             {
-                // todo: 速度制限や境界処理の追加
                 _accelerations[i] = LimitVector(_accelerations[i], MaxAcceleration);
 
                 _velocities[i] += _accelerations[i] * deltaTime;
@@ -84,17 +86,19 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// <param name="range">影響を与えるboidの範囲</param>
         /// <param name="index">計算対象のboidsのindex</param>
         /// <param name="deltaTime">前回更新からの経過時間</param>
+        /// <param name="fleeThreshold">分離が行われる近さの閾値</param>
         /// <returns></returns>
         private static Vector3 CalcIndividualAccChange(
             ReadOnlySpan<Vector3> positions,
             ReadOnlySpan<Vector3> velocities,
             float range,
             int index,
-            float deltaTime
+            float deltaTime,
+            float fleeThreshold
         )
         {
             var alignForce = AlignForce(positions, velocities, range, index, deltaTime);
-            var separationForce = SeparationForce(positions, velocities, range, index, deltaTime);
+            var separationForce = SeparationForce(positions, velocities, range, index, deltaTime, fleeThreshold);
             var cohesionForce = CohesionForce(positions, velocities, range, index, deltaTime);
 
             return alignForce + separationForce + cohesionForce;
@@ -144,16 +148,51 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             return averageVelocity - velocities[index];
         }
 
+        /// <summary>
+        /// 分離。
+        /// 範囲内の中のさらに分離閾値内にあるboidに対して
+        /// 回避するような加速度を算出する。
+        /// </summary>
+        /// <param name="positions"></param>
+        /// <param name="velocities"></param>
+        /// <param name="range"></param>
+        /// <param name="index"></param>
+        /// <param name="deltaTime"></param>
+        /// <param name="separationThreshold"></param>
+        /// <returns></returns>
         private static Vector3 SeparationForce(
             ReadOnlySpan<Vector3> positions,
             ReadOnlySpan<Vector3> velocities,
             float range,
             int index,
-            float deltaTime
+            float deltaTime,
+            float separationThreshold
         )
         {
-            // todo: 処理を実装
-            return Vector3.zero;
+            if (positions.Length != velocities.Length)
+            {
+                return Vector3.zero;
+            }
+
+            var fleeForce = Vector3.zero;
+            for (var i = 0; i < positions.Length; i++)
+            {
+                if (i == index || !WithinRange(positions[index], positions[i], range))
+                {
+                    continue;
+                }
+
+                var dirPosition = positions[i] - positions[index];
+                var distance = dirPosition.sqrMagnitude;
+                if (distance >= separationThreshold * separationThreshold)
+                {
+                    continue;
+                }
+
+                fleeForce += -(dirPosition - velocities[index]);
+            }
+
+            return fleeForce;
         }
 
         /// <summary>

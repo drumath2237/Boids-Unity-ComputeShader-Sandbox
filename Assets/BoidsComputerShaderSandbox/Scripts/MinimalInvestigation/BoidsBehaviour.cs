@@ -17,7 +17,7 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         private int boidsCount = 50;
 
         [SerializeField]
-        private float insightRange = 0.5f;
+        private float insightRange = 3f;
 
         [SerializeField]
         private float maxVelocity = 0.1f;
@@ -30,6 +30,9 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
 
         [SerializeField]
         private float timeScale = 1f;
+
+        [SerializeField]
+        private float fleeThreshold = 1f;
 
 
         private void Start()
@@ -46,13 +49,14 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
                 InsightRange = insightRange,
                 BoundingSize = boundingSize,
                 MaxAcceleration = maxAcceleration,
-                MaxVelocity = maxVelocity
+                MaxVelocity = maxVelocity,
+                FleeThreshold = fleeThreshold
             });
 
             _boidsTransforms = new Transform[_boidsCore.Count];
             for (var i = 0; i < _boidsCore.Count; i++)
             {
-                _boidsTransforms[i] = Instantiate(boidPrefab).transform;
+                _boidsTransforms[i] = Instantiate(boidPrefab, gameObject.transform).transform;
             }
         }
 
