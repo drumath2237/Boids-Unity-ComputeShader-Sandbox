@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace BoidsComputeShaderSandbox.MinimalInvestigation
 {
@@ -11,6 +12,26 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
 
         private Transform[] _boidsTransforms;
 
+        [Space, Header("Boids Info")]
+        [SerializeField]
+        private int boidsCount = 50;
+
+        [SerializeField]
+        private float insightRange = 0.5f;
+
+        [SerializeField]
+        private float maxVelocity = 0.1f;
+
+        [SerializeField]
+        private float maxAcceleration = 0.1f;
+
+        [SerializeField]
+        private Vector3 boundingSize;
+
+        [SerializeField]
+        private float timeScale = 1f;
+
+
         private void Start()
         {
             if (boidPrefab == null)
@@ -21,11 +42,11 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
 
             _boidsCore = new BoidsCore(new BoidsOptions
             {
-                Count = 50,
-                InsightRange = 1f,
-                BoundingSize = new Vector3(5f, 5f, 5f),
-                MaxAcceleration = 0.2f,
-                MaxVelocity = 0.5f
+                Count = boidsCount,
+                InsightRange = insightRange,
+                BoundingSize = boundingSize,
+                MaxAcceleration = maxAcceleration,
+                MaxVelocity = maxVelocity
             });
 
             _boidsTransforms = new Transform[_boidsCore.Count];
@@ -43,11 +64,17 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
                 return;
             }
 
-            _boidsCore.Update(Time.deltaTime);
+            _boidsCore.Update(Time.deltaTime * timeScale);
             for (var i = 0; i < _boidsCore.Count; i++)
             {
                 _boidsTransforms[i].transform.position = _boidsCore.Positions[i];
+                _boidsTransforms[i].transform.rotation = Quaternion.LookRotation(_boidsCore.Velocities[i]);
             }
+        }
+
+        private void OnDrawGizmos()
+        {
+            Gizmos.DrawWireCube(Vector3.zero, boundingSize * 2);
         }
     }
 }

@@ -64,10 +64,10 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
                 // todo: 速度制限や境界処理の追加
                 _accelerations[i] = LimitVector(_accelerations[i], MaxAcceleration);
 
-                _velocities[i] += _accelerations[i];
+                _velocities[i] += _accelerations[i] * deltaTime;
                 _velocities[i] = LimitVector(_velocities[i], MaxVelocity);
 
-                _positions[i] += _velocities[i];
+                _positions[i] += _velocities[i] * deltaTime;
 
                 BorderTreatment(BoundingSize, i);
 
@@ -122,7 +122,7 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
                 return Vector3.zero;
             }
 
-            var sumOfVelocities = new Vector3();
+            var sumOfVelocities = Vector3.zero;
             var insightCount = 0;
             for (var i = 0; i < velocities.Length; i++)
             {
