@@ -25,7 +25,7 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         private float maxAcceleration = 0.1f;
 
         [SerializeField]
-        private Vector3 boundingSize;
+        private Vector3 boundarySize;
 
         [SerializeField]
         private float timeScale = 1f;
@@ -54,11 +54,9 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             _boidsCore = new BoidsCore(new BoidsOptions
             {
                 Count = boidsCount,
-                InsightRange = insightRange,
-                BoundingSize = boundingSize,
-                MaxAcceleration = maxAcceleration,
-                MaxVelocity = maxVelocity,
-                FleeThreshold = fleeThreshold
+                InitPositionRange = boundarySize,
+                InitMaxAcceleration = maxAcceleration,
+                InitMaxVelocity = maxVelocity,
             });
 
             _boidsTransforms = new Transform[_boidsCore.Count];
@@ -76,14 +74,19 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
                 return;
             }
 
-            var forceWeights = new ForceWeights
+            var updateParams = new UpdateParams
             {
                 AlignWeight = alignWeight,
                 SeparationWeight = separationWeight,
-                CohesionWeight = cohesionWeight
+                CohesionWeight = cohesionWeight,
+                FleeThreshold = fleeThreshold,
+                InsightRange = insightRange,
+                MaxAcceleration = maxAcceleration,
+                MaxVelocity = maxVelocity,
+                BoundarySize = boundarySize
             };
 
-            _boidsCore.Update(Time.deltaTime * timeScale, forceWeights);
+            _boidsCore.Update(Time.deltaTime * timeScale, updateParams);
             for (var i = 0; i < _boidsCore.Count; i++)
             {
                 _boidsTransforms[i].transform.position = _boidsCore.Positions[i];
@@ -93,7 +96,7 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
 
         private void OnDrawGizmos()
         {
-            Gizmos.DrawWireCube(Vector3.zero, boundingSize * 2);
+            Gizmos.DrawWireCube(Vector3.zero, boundarySize * 2);
         }
     }
 }

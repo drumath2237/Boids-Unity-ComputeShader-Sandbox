@@ -7,24 +7,59 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
     public struct BoidsOptions
     {
         public int Count { get; set; }
-        public Vector3 BoundingSize { get; set; }
-        public float MaxVelocity { get; set; }
-        public float MaxAcceleration { get; set; }
-        public float InsightRange { get; set; }
+        public Vector3 InitPositionRange { get; set; }
+        public float InitMaxVelocity { get; set; }
+        public float InitMaxAcceleration { get; set; }
 
-        public float FleeThreshold { get; set; }
+        public void Deconstruct(
+            out int count,
+            out Vector3 positionRange,
+            out float maxVelocity,
+            out float maxAcceleration
+        )
+        {
+            count = Count;
+            positionRange = InitPositionRange;
+            maxVelocity = InitMaxVelocity;
+            maxAcceleration = InitMaxAcceleration;
+        }
     }
 
-    public struct ForceWeights
+    public struct UpdateParams
     {
         public float AlignWeight { get; set; }
         public float SeparationWeight { get; set; }
         public float CohesionWeight { get; set; }
+        public Vector3 BoundarySize { get; set; }
+        public float MaxVelocity { get; set; }
+        public float MaxAcceleration { get; set; }
+        public float InsightRange { get; set; }
+        public float FleeThreshold { get; set; }
+
+        public void Deconstruct(
+            out float alignWeight,
+            out float separationWeight,
+            out float cohesionWeight,
+            out Vector3 boundarySize,
+            out float maxVelocity,
+            out float maxAcceleration,
+            out float insightRange,
+            out float fleeThreshold
+        )
+        {
+            alignWeight = AlignWeight;
+            separationWeight = SeparationWeight;
+            cohesionWeight = CohesionWeight;
+            boundarySize = BoundarySize;
+            maxVelocity = MaxVelocity;
+            maxAcceleration = MaxAcceleration;
+            insightRange = InsightRange;
+            fleeThreshold = FleeThreshold;
+        }
     }
 
     public class BoidsCore
     {
-        private readonly BoidsOptions _options;
         private readonly Vector3[] _positions;
         private readonly Vector3[] _velocities;
         private readonly Vector3[] _accelerations;
@@ -32,16 +67,12 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         public Vector3[] Positions => _positions;
         public Vector3[] Velocities => _velocities;
 
-        public int Count => _options.Count;
-        public Vector3 BoundingSize => _options.BoundingSize;
-        public float InsightRange => _options.InsightRange;
-        public float MaxVelocity => _options.MaxVelocity;
-        public float MaxAcceleration => _options.MaxAcceleration;
-        public float FleeThreshold => _options.FleeThreshold;
+        public int Count { get; }
 
         public BoidsCore(BoidsOptions options)
         {
-            _options = options;
+            var (count, initPositionRange, maxVelocity, _) = options;
+            Count = count;
 
             _positions = new Vector3[Count];
             _velocities = new Vector3[Count];
@@ -49,38 +80,31 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
 
             for (var i = 0; i < Count; i++)
             {
-                _positions[i] = RandomVector3(-BoundingSize, BoundingSize);
-                var maxVelocity3 = new Vector3(MaxVelocity, MaxVelocity, MaxVelocity);
+                _positions[i] = RandomVector3(-initPositionRange, initPositionRange);
+                var maxVelocity3 = new Vector3(maxVelocity, maxVelocity, maxVelocity);
                 _velocities[i] = RandomVector3(-maxVelocity3, maxVelocity3);
             }
         }
 
-        public void Update(float deltaTime, ForceWeights forceWeights)
+        public void Update(float deltaTime, UpdateParams updateParams)
         {
+            var (_, _, _, boundarySize, maxVelocity, maxAcceleration, _, _) = updateParams;
             for (var i = 0; i < Count; i++)
             {
-                _accelerations[i] += CalcIndividualAccChange(
-                    _positions.AsSpan(),
-                    _velocities.AsSpan(),
-                    InsightRange,
-                    i,
-                    FleeThreshold,
-                    forceWeights
-                );
+                _accelerations[i] =
+                    CalcIndividualAccChange(_positions.AsSpan(), _velocities.AsSpan(), i, updateParams);
             }
 
             for (var i = 0; i < Count; i++)
             {
-                _accelerations[i] = LimitVector(_accelerations[i], MaxAcceleration);
+                _accelerations[i] = LimitVector(_accelerations[i], maxAcceleration);
 
                 _velocities[i] += _accelerations[i] * deltaTime;
-                _velocities[i] = LimitVector(_velocities[i], MaxVelocity);
+                _velocities[i] = LimitVector(_velocities[i], maxVelocity);
 
                 _positions[i] += _velocities[i] * deltaTime;
 
-                BorderTreatment(BoundingSize, i);
-
-                _accelerations[i] = Vector3.zero;
+                BorderTreatment(boundarySize, i);
             }
         }
 
@@ -90,27 +114,24 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// </summary>
         /// <param name="positions">boidsの位置配列</param>
         /// <param name="velocities">boidsの速度配列</param>
-        /// <param name="range">影響を与えるboidの範囲</param>
         /// <param name="index">計算対象のboidsのindex</param>
-        /// <param name="fleeThreshold">分離が行われる近さの閾値</param>
-        /// <param name="forceWeights"></param>
+        /// <param name="updateParams"></param>
         /// <returns></returns>
         private static Vector3 CalcIndividualAccChange(
             ReadOnlySpan<Vector3> positions,
             ReadOnlySpan<Vector3> velocities,
-            float range,
             int index,
-            float fleeThreshold,
-            ForceWeights forceWeights
+            UpdateParams updateParams
         )
         {
-            var alignForce = AlignForce(positions, velocities, range, index);
-            var separationForce = SeparationForce(positions, velocities, range, index, fleeThreshold);
-            var cohesionForce = CohesionForce(positions, velocities, range, index);
+            var (alignWeight, separationWeight, cohesionWeight, _, _, _, insightRange, fleeThreshold)
+                = updateParams;
 
-            return alignForce * forceWeights.AlignWeight
-                   + separationForce * forceWeights.SeparationWeight
-                   + cohesionForce * forceWeights.CohesionWeight;
+            var alignForce = AlignForce(positions, velocities, insightRange, index);
+            var separationForce = SeparationForce(positions, velocities, insightRange, index, fleeThreshold);
+            var cohesionForce = CohesionForce(positions, velocities, insightRange, index);
+
+            return alignForce * alignWeight + separationForce * separationWeight + cohesionForce * cohesionWeight;
         }
 
         /// <summary>
@@ -248,43 +269,43 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         }
 
         private void BorderTreatment(
-            Vector3 boundingSize,
+            Vector3 boundary,
             int index
         )
         {
             var pos = _positions[index];
             var vel = _velocities[index];
 
-            if (pos.x > boundingSize.x)
+            if (pos.x > boundary.x)
             {
-                pos = WithX(pos, boundingSize.x);
+                pos = WithX(pos, boundary.x);
                 vel = WithX(vel, -vel.x);
             }
-            else if (pos.x < -boundingSize.x)
+            else if (pos.x < -boundary.x)
             {
-                pos = WithX(pos, -boundingSize.x);
+                pos = WithX(pos, -boundary.x);
                 vel = WithX(vel, -vel.x);
             }
 
-            if (pos.y > boundingSize.y)
+            if (pos.y > boundary.y)
             {
-                pos = WithY(pos, boundingSize.y);
+                pos = WithY(pos, boundary.y);
                 vel = WithY(vel, -vel.y);
             }
-            else if (pos.y < -boundingSize.y)
+            else if (pos.y < -boundary.y)
             {
-                pos = WithY(pos, -boundingSize.y);
+                pos = WithY(pos, -boundary.y);
                 vel = WithY(vel, -vel.y);
             }
 
-            if (pos.z > boundingSize.z)
+            if (pos.z > boundary.z)
             {
-                pos = WithZ(pos, boundingSize.z);
+                pos = WithZ(pos, boundary.z);
                 vel = WithZ(vel, -vel.z);
             }
-            else if (pos.z < -boundingSize.z)
+            else if (pos.z < -boundary.z)
             {
-                pos = WithZ(pos, -boundingSize.z);
+                pos = WithZ(pos, -boundary.z);
                 vel = WithZ(vel, -vel.z);
             }
 
