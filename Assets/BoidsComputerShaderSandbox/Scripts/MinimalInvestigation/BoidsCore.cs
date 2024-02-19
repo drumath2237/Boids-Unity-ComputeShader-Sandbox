@@ -34,8 +34,28 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         public float MaxVelocity { get; set; }
         public float MaxAcceleration { get; set; }
         public float InsightRange { get; set; }
-
         public float FleeThreshold { get; set; }
+
+        public void Deconstruct(
+            out float alignWeight,
+            out float separationWeight,
+            out float cohesionWeight,
+            out Vector3 boundarySize,
+            out float maxVelocity,
+            out float maxAcceleration,
+            out float insightRange,
+            out float fleeThreshold
+        )
+        {
+            alignWeight = AlignWeight;
+            separationWeight = SeparationWeight;
+            cohesionWeight = CohesionWeight;
+            boundarySize = BoundarySize;
+            maxVelocity = MaxVelocity;
+            maxAcceleration = MaxAcceleration;
+            insightRange = InsightRange;
+            fleeThreshold = FleeThreshold;
+        }
     }
 
     public class BoidsCore
@@ -68,24 +88,23 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
 
         public void Update(float deltaTime, UpdateParams updateParams)
         {
+            var (_, _, _, boundarySize, maxVelocity, maxAcceleration, _, _) = updateParams;
             for (var i = 0; i < Count; i++)
             {
-                _accelerations[i] +=
+                _accelerations[i] =
                     CalcIndividualAccChange(_positions.AsSpan(), _velocities.AsSpan(), i, updateParams);
             }
 
             for (var i = 0; i < Count; i++)
             {
-                _accelerations[i] = LimitVector(_accelerations[i], updateParams.MaxAcceleration);
+                _accelerations[i] = LimitVector(_accelerations[i], maxAcceleration);
 
                 _velocities[i] += _accelerations[i] * deltaTime;
-                _velocities[i] = LimitVector(_velocities[i], updateParams.MaxVelocity);
+                _velocities[i] = LimitVector(_velocities[i], maxVelocity);
 
                 _positions[i] += _velocities[i] * deltaTime;
 
-                BorderTreatment(updateParams.BoundarySize, i);
-
-                _accelerations[i] = Vector3.zero;
+                BorderTreatment(boundarySize, i);
             }
         }
 
@@ -105,14 +124,14 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             UpdateParams updateParams
         )
         {
-            var alignForce = AlignForce(positions, velocities, updateParams.InsightRange, index);
-            var separationForce = SeparationForce(positions, velocities, updateParams.InsightRange, index,
-                updateParams.FleeThreshold);
-            var cohesionForce = CohesionForce(positions, velocities, updateParams.InsightRange, index);
+            var (alignWeight, separationWeight, cohesionWeight, _, _, _, insightRange, fleeThreshold)
+                = updateParams;
 
-            return alignForce * updateParams.AlignWeight
-                   + separationForce * updateParams.SeparationWeight
-                   + cohesionForce * updateParams.CohesionWeight;
+            var alignForce = AlignForce(positions, velocities, insightRange, index);
+            var separationForce = SeparationForce(positions, velocities, insightRange, index, fleeThreshold);
+            var cohesionForce = CohesionForce(positions, velocities, insightRange, index);
+
+            return alignForce * alignWeight + separationForce * separationWeight + cohesionForce * cohesionWeight;
         }
 
         /// <summary>
