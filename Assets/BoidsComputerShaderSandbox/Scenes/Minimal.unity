@@ -407,7 +407,7 @@ MonoBehaviour:
   insightRange: 4
   maxVelocity: 5
   maxAcceleration: 5
-  boundingSize: {x: 10, y: 10, z: 10}
+  boundarySize: {x: 10, y: 10, z: 10}
   timeScale: 1
   fleeThreshold: 0.75
   alignWeight: 3

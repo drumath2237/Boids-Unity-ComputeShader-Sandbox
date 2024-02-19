@@ -10,9 +10,19 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         public Vector3 InitPositionRange { get; set; }
         public float InitMaxVelocity { get; set; }
         public float InitMaxAcceleration { get; set; }
-        public float InsightRange { get; set; }
 
-        public float FleeThreshold { get; set; }
+        public void Deconstruct(
+            out int count,
+            out Vector3 positionRange,
+            out float maxVelocity,
+            out float maxAcceleration
+        )
+        {
+            count = Count;
+            positionRange = InitPositionRange;
+            maxVelocity = InitMaxVelocity;
+            maxAcceleration = InitMaxAcceleration;
+        }
     }
 
     public struct UpdateParams
@@ -30,7 +40,6 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
 
     public class BoidsCore
     {
-        private readonly BoidsOptions _options;
         private readonly Vector3[] _positions;
         private readonly Vector3[] _velocities;
         private readonly Vector3[] _accelerations;
@@ -38,16 +47,12 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         public Vector3[] Positions => _positions;
         public Vector3[] Velocities => _velocities;
 
-        public int Count => _options.Count;
-        public Vector3 BoundingSize => _options.InitPositionRange;
-        public float InsightRange => _options.InsightRange;
-        public float MaxVelocity => _options.InitMaxVelocity;
-        public float MaxAcceleration => _options.InitMaxAcceleration;
-        public float FleeThreshold => _options.FleeThreshold;
+        public int Count { get; }
 
         public BoidsCore(BoidsOptions options)
         {
-            _options = options;
+            var (count, initPositionRange, maxVelocity, _) = options;
+            Count = count;
 
             _positions = new Vector3[Count];
             _velocities = new Vector3[Count];
@@ -55,36 +60,30 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
 
             for (var i = 0; i < Count; i++)
             {
-                _positions[i] = RandomVector3(-BoundingSize, BoundingSize);
-                var maxVelocity3 = new Vector3(MaxVelocity, MaxVelocity, MaxVelocity);
+                _positions[i] = RandomVector3(-initPositionRange, initPositionRange);
+                var maxVelocity3 = new Vector3(maxVelocity, maxVelocity, maxVelocity);
                 _velocities[i] = RandomVector3(-maxVelocity3, maxVelocity3);
             }
         }
 
-        public void Update(float deltaTime, UpdateParams forceWeights)
+        public void Update(float deltaTime, UpdateParams updateParams)
         {
             for (var i = 0; i < Count; i++)
             {
-                _accelerations[i] += CalcIndividualAccChange(
-                    _positions.AsSpan(),
-                    _velocities.AsSpan(),
-                    InsightRange,
-                    i,
-                    FleeThreshold,
-                    forceWeights
-                );
+                _accelerations[i] +=
+                    CalcIndividualAccChange(_positions.AsSpan(), _velocities.AsSpan(), i, updateParams);
             }
 
             for (var i = 0; i < Count; i++)
             {
-                _accelerations[i] = LimitVector(_accelerations[i], MaxAcceleration);
+                _accelerations[i] = LimitVector(_accelerations[i], updateParams.MaxAcceleration);
 
                 _velocities[i] += _accelerations[i] * deltaTime;
-                _velocities[i] = LimitVector(_velocities[i], MaxVelocity);
+                _velocities[i] = LimitVector(_velocities[i], updateParams.MaxVelocity);
 
                 _positions[i] += _velocities[i] * deltaTime;
 
-                BorderTreatment(BoundingSize, i);
+                BorderTreatment(updateParams.BoundarySize, i);
 
                 _accelerations[i] = Vector3.zero;
             }
@@ -96,27 +95,24 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// </summary>
         /// <param name="positions">boidsの位置配列</param>
         /// <param name="velocities">boidsの速度配列</param>
-        /// <param name="range">影響を与えるboidの範囲</param>
         /// <param name="index">計算対象のboidsのindex</param>
-        /// <param name="fleeThreshold">分離が行われる近さの閾値</param>
-        /// <param name="forceWeights"></param>
+        /// <param name="updateParams"></param>
         /// <returns></returns>
         private static Vector3 CalcIndividualAccChange(
             ReadOnlySpan<Vector3> positions,
             ReadOnlySpan<Vector3> velocities,
-            float range,
             int index,
-            float fleeThreshold,
-            UpdateParams forceWeights
+            UpdateParams updateParams
         )
         {
-            var alignForce = AlignForce(positions, velocities, range, index);
-            var separationForce = SeparationForce(positions, velocities, range, index, fleeThreshold);
-            var cohesionForce = CohesionForce(positions, velocities, range, index);
+            var alignForce = AlignForce(positions, velocities, updateParams.InsightRange, index);
+            var separationForce = SeparationForce(positions, velocities, updateParams.InsightRange, index,
+                updateParams.FleeThreshold);
+            var cohesionForce = CohesionForce(positions, velocities, updateParams.InsightRange, index);
 
-            return alignForce * forceWeights.AlignWeight
-                   + separationForce * forceWeights.SeparationWeight
-                   + cohesionForce * forceWeights.CohesionWeight;
+            return alignForce * updateParams.AlignWeight
+                   + separationForce * updateParams.SeparationWeight
+                   + cohesionForce * updateParams.CohesionWeight;
         }
 
         /// <summary>
