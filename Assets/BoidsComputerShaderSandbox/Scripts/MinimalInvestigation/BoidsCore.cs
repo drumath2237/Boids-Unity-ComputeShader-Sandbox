@@ -7,19 +7,25 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
     public struct BoidsOptions
     {
         public int Count { get; set; }
-        public Vector3 BoundingSize { get; set; }
-        public float MaxVelocity { get; set; }
-        public float MaxAcceleration { get; set; }
+        public Vector3 InitPositionRange { get; set; }
+        public float InitMaxVelocity { get; set; }
+        public float InitMaxAcceleration { get; set; }
         public float InsightRange { get; set; }
 
         public float FleeThreshold { get; set; }
     }
 
-    public struct ForceWeights
+    public struct UpdateParams
     {
         public float AlignWeight { get; set; }
         public float SeparationWeight { get; set; }
         public float CohesionWeight { get; set; }
+        public Vector3 BoundarySize { get; set; }
+        public float MaxVelocity { get; set; }
+        public float MaxAcceleration { get; set; }
+        public float InsightRange { get; set; }
+
+        public float FleeThreshold { get; set; }
     }
 
     public class BoidsCore
@@ -33,10 +39,10 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         public Vector3[] Velocities => _velocities;
 
         public int Count => _options.Count;
-        public Vector3 BoundingSize => _options.BoundingSize;
+        public Vector3 BoundingSize => _options.InitPositionRange;
         public float InsightRange => _options.InsightRange;
-        public float MaxVelocity => _options.MaxVelocity;
-        public float MaxAcceleration => _options.MaxAcceleration;
+        public float MaxVelocity => _options.InitMaxVelocity;
+        public float MaxAcceleration => _options.InitMaxAcceleration;
         public float FleeThreshold => _options.FleeThreshold;
 
         public BoidsCore(BoidsOptions options)
@@ -55,7 +61,7 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             }
         }
 
-        public void Update(float deltaTime, ForceWeights forceWeights)
+        public void Update(float deltaTime, UpdateParams forceWeights)
         {
             for (var i = 0; i < Count; i++)
             {
@@ -101,7 +107,7 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             float range,
             int index,
             float fleeThreshold,
-            ForceWeights forceWeights
+            UpdateParams forceWeights
         )
         {
             var alignForce = AlignForce(positions, velocities, range, index);
@@ -248,43 +254,43 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         }
 
         private void BorderTreatment(
-            Vector3 boundingSize,
+            Vector3 boundary,
             int index
         )
         {
             var pos = _positions[index];
             var vel = _velocities[index];
 
-            if (pos.x > boundingSize.x)
+            if (pos.x > boundary.x)
             {
-                pos = WithX(pos, boundingSize.x);
+                pos = WithX(pos, boundary.x);
                 vel = WithX(vel, -vel.x);
             }
-            else if (pos.x < -boundingSize.x)
+            else if (pos.x < -boundary.x)
             {
-                pos = WithX(pos, -boundingSize.x);
+                pos = WithX(pos, -boundary.x);
                 vel = WithX(vel, -vel.x);
             }
 
-            if (pos.y > boundingSize.y)
+            if (pos.y > boundary.y)
             {
-                pos = WithY(pos, boundingSize.y);
+                pos = WithY(pos, boundary.y);
                 vel = WithY(vel, -vel.y);
             }
-            else if (pos.y < -boundingSize.y)
+            else if (pos.y < -boundary.y)
             {
-                pos = WithY(pos, -boundingSize.y);
+                pos = WithY(pos, -boundary.y);
                 vel = WithY(vel, -vel.y);
             }
 
-            if (pos.z > boundingSize.z)
+            if (pos.z > boundary.z)
             {
-                pos = WithZ(pos, boundingSize.z);
+                pos = WithZ(pos, boundary.z);
                 vel = WithZ(vel, -vel.z);
             }
-            else if (pos.z < -boundingSize.z)
+            else if (pos.z < -boundary.z)
             {
-                pos = WithZ(pos, -boundingSize.z);
+                pos = WithZ(pos, -boundary.z);
                 vel = WithZ(vel, -vel.z);
             }
 

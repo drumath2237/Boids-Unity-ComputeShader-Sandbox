@@ -55,9 +55,9 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             {
                 Count = boidsCount,
                 InsightRange = insightRange,
-                BoundingSize = boundingSize,
-                MaxAcceleration = maxAcceleration,
-                MaxVelocity = maxVelocity,
+                InitPositionRange = boundingSize,
+                InitMaxAcceleration = maxAcceleration,
+                InitMaxVelocity = maxVelocity,
                 FleeThreshold = fleeThreshold
             });
 
@@ -76,7 +76,7 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
                 return;
             }
 
-            var forceWeights = new ForceWeights
+            var forceWeights = new UpdateParams
             {
                 AlignWeight = alignWeight,
                 SeparationWeight = separationWeight,
