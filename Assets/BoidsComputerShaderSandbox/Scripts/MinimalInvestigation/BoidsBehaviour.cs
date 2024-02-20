@@ -89,8 +89,8 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             _boidsCore.Update(Time.deltaTime * timeScale, updateParams);
             for (var i = 0; i < _boidsCore.Count; i++)
             {
-                _boidsTransforms[i].transform.position = _boidsCore.Positions[i];
-                _boidsTransforms[i].transform.rotation = Quaternion.LookRotation(_boidsCore.Velocities[i]);
+                _boidsTransforms[i].transform.position = _boidsCore.Boids[i].Position;
+                _boidsTransforms[i].transform.rotation = Quaternion.LookRotation(_boidsCore.Boids[i].Velocity);
             }
         }
 

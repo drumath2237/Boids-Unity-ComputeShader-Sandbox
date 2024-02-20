@@ -1,4 +1,5 @@
 ﻿using System;
+using BoidsComputeShaderSandbox.Types;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -60,13 +61,7 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
 
     public class BoidsCore
     {
-        private readonly Vector3[] _positions;
-        private readonly Vector3[] _velocities;
-        private readonly Vector3[] _accelerations;
-
-        public Vector3[] Positions => _positions;
-        public Vector3[] Velocities => _velocities;
-
+        public BoidsData[] Boids { get; }
         public int Count { get; }
 
         public BoidsCore(BoidsOptions options)
@@ -74,37 +69,47 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             var (count, initPositionRange, maxVelocity, _) = options;
             Count = count;
 
-            _positions = new Vector3[Count];
-            _velocities = new Vector3[Count];
-            _accelerations = new Vector3[Count];
+            Boids = new BoidsData[Count];
 
             for (var i = 0; i < Count; i++)
             {
-                _positions[i] = RandomVector3(-initPositionRange, initPositionRange);
                 var maxVelocity3 = new Vector3(maxVelocity, maxVelocity, maxVelocity);
-                _velocities[i] = RandomVector3(-maxVelocity3, maxVelocity3);
+                Boids[i] = new BoidsData
+                {
+                    Position = RandomVector3(-initPositionRange, initPositionRange),
+                    Velocity = RandomVector3(-maxVelocity3, maxVelocity3)
+                };
             }
         }
 
         public void Update(float deltaTime, UpdateParams updateParams)
         {
-            var (_, _, _, boundarySize, maxVelocity, maxAcceleration, _, _) = updateParams;
+            var (
+                _, _, _,
+                boundarySize,
+                maxVelocity,
+                maxAcceleration,
+                _, _
+                ) = updateParams;
+            var accelerations = new Vector3[Count];
+
             for (var i = 0; i < Count; i++)
             {
-                _accelerations[i] =
-                    CalcIndividualAccChange(_positions.AsSpan(), _velocities.AsSpan(), i, updateParams);
+                accelerations[i] =
+                    CalcIndividualForce(Boids.AsSpan(), i, updateParams);
             }
 
             for (var i = 0; i < Count; i++)
             {
-                _accelerations[i] = LimitVector(_accelerations[i], maxAcceleration);
+                accelerations[i] = LimitVector(accelerations[i], maxAcceleration);
 
-                _velocities[i] += _accelerations[i] * deltaTime;
-                _velocities[i] = LimitVector(_velocities[i], maxVelocity);
+                var vel = Boids[i].Velocity + accelerations[i] * deltaTime;
+                vel = LimitVector(vel, maxVelocity);
 
-                _positions[i] += _velocities[i] * deltaTime;
+                var pos = Boids[i].Position + vel * deltaTime;
 
-                BorderTreatment(boundarySize, i);
+                var boidsData = new BoidsData(pos, vel);
+                Boids[i] = BorderTreatment(boidsData, boundarySize);
             }
         }
 
@@ -112,58 +117,58 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// 個別のboidに対してシミュレーションの更新を行い
         /// 次のフレームの加速度を出力する関数
         /// </summary>
-        /// <param name="positions">boidsの位置配列</param>
-        /// <param name="velocities">boidsの速度配列</param>
+        /// <param name="boids">Boids全体</param>
         /// <param name="index">計算対象のboidsのindex</param>
-        /// <param name="updateParams"></param>
+        /// <param name="updateParams">Updateパラメータ</param>
         /// <returns></returns>
-        private static Vector3 CalcIndividualAccChange(
-            ReadOnlySpan<Vector3> positions,
-            ReadOnlySpan<Vector3> velocities,
+        private static Vector3 CalcIndividualForce(
+            ReadOnlySpan<BoidsData> boids,
             int index,
             UpdateParams updateParams
         )
         {
-            var (alignWeight, separationWeight, cohesionWeight, _, _, _, insightRange, fleeThreshold)
-                = updateParams;
+            var (
+                alignWeight,
+                separationWeight,
+                cohesionWeight,
+                _, _, _,
+                insightRange,
+                fleeThreshold
+                ) = updateParams;
 
-            var alignForce = AlignForce(positions, velocities, insightRange, index);
-            var separationForce = SeparationForce(positions, velocities, insightRange, index, fleeThreshold);
-            var cohesionForce = CohesionForce(positions, velocities, insightRange, index);
+            var alignForce = AlignForce(boids, insightRange, index);
+            var separationForce = SeparationForce(boids, insightRange, index, fleeThreshold);
+            var cohesionForce = CohesionForce(boids, insightRange, index);
 
-            return alignForce * alignWeight + separationForce * separationWeight + cohesionForce * cohesionWeight;
+            return
+                alignForce * alignWeight
+                + separationForce * separationWeight
+                + cohesionForce * cohesionWeight;
         }
 
         /// <summary>
         /// 整列。影響範囲の平均速度ベクトルへの自分の速度ベクトルへの差分を算出する
         /// </summary>
-        /// <param name="positions"></param>
-        /// <param name="velocities"></param>
-        /// <param name="range"></param>
-        /// <param name="index"></param>
+        /// <param name="boids">Boids全体</param>
+        /// <param name="range">影響範囲の半径</param>
+        /// <param name="index">対象のBoidsのインデックス</param>
         /// <returns>整列処理によって算出されたaccの差分</returns>
         private static Vector3 AlignForce(
-            ReadOnlySpan<Vector3> positions,
-            ReadOnlySpan<Vector3> velocities,
+            ReadOnlySpan<BoidsData> boids,
             float range,
             int index
         )
         {
-            if (positions.Length != velocities.Length)
-            {
-                return Vector3.zero;
-            }
-
             var sumOfVelocities = Vector3.zero;
             var insightCount = 0;
-            for (var i = 0; i < velocities.Length; i++)
+            for (var i = 0; i < boids.Length; i++)
             {
-                if (i == index || !WithinRange(positions[index], positions[i], range))
+                if (i == index || !WithinRange(boids[index], boids[i], range))
                 {
                     continue;
                 }
 
-                sumOfVelocities += velocities[i];
+                sumOfVelocities += boids[i].Velocity;
                 insightCount++;
             }
 
@@ -173,7 +178,7 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             }
 
             var averageVelocity = sumOfVelocities / insightCount;
-            return averageVelocity - velocities[index];
+            return averageVelocity - boids[index].Velocity;
         }
 
         /// <summary>
@@ -181,41 +186,34 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// 範囲内の中のさらに分離閾値内にあるboidに対して
         /// 回避するような加速度を算出する。
         /// </summary>
-        /// <param name="positions"></param>
-        /// <param name="velocities"></param>
-        /// <param name="range"></param>
-        /// <param name="index"></param>
-        /// <param name="separationThreshold"></param>
+        /// <param name="boids">Boids全体</param>
+        /// <param name="range">影響範囲の半径</param>
+        /// <param name="index">計算対象のBoidsのインデックス</param>
+        /// <param name="separationThreshold">分離が行われる近さの閾値</param>
         /// <returns></returns>
         private static Vector3 SeparationForce(
-            ReadOnlySpan<Vector3> positions,
-            ReadOnlySpan<Vector3> velocities,
+            ReadOnlySpan<BoidsData> boids,
             float range,
             int index,
             float separationThreshold
         )
         {
-            if (positions.Length != velocities.Length)
-            {
-                return Vector3.zero;
-            }
-
             var fleeForce = Vector3.zero;
-            for (var i = 0; i < positions.Length; i++)
+            for (var i = 0; i < boids.Length; i++)
             {
-                if (i == index || !WithinRange(positions[index], positions[i], range))
+                if (i == index || !WithinRange(boids[index], boids[i], range))
                 {
                     continue;
                 }
 
-                var dirPosition = positions[i] - positions[index];
+                var dirPosition = boids[i].Position - boids[index].Position;
                 var distance = dirPosition.sqrMagnitude;
                 if (distance >= separationThreshold * separationThreshold)
                 {
                     continue;
                 }
 
-                fleeForce += -(dirPosition - velocities[index]);
+                fleeForce += -(dirPosition - boids[index].Velocity);
             }
 
             return fleeForce;
@@ -226,33 +224,26 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// 範囲内の平均Positionに対して近づいていくような
         /// 加速度を算出する。
         /// </summary>
-        /// <param name="positions"></param>
-        /// <param name="velocities"></param>
-        /// <param name="range"></param>
-        /// <param name="index"></param>
+        /// <param name="boids">Boids全体</param>
+        /// <param name="range">影響範囲の半径</param>
+        /// <param name="index">計算対象のBoidsのインデックス</param>
         /// <returns></returns>
         private static Vector3 CohesionForce(
-            ReadOnlySpan<Vector3> positions,
-            ReadOnlySpan<Vector3> velocities,
+            ReadOnlySpan<BoidsData> boids,
             float range,
             int index
         )
         {
-            if (positions.Length != velocities.Length)
-            {
-                return Vector3.zero;
-            }
-
             var positionSum = Vector3.zero;
             var sumCount = 0;
-            for (var i = 0; i < positions.Length; i++)
+            for (var i = 0; i < boids.Length; i++)
             {
-                if (i == index || !WithinRange(positions[index], positions[i], range))
+                if (i == index || !WithinRange(boids[index], boids[i], range))
                 {
                     continue;
                 }
 
-                positionSum += positions[i];
+                positionSum += boids[i].Position;
                 sumCount++;
             }
 
@@ -262,19 +253,15 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             }
 
             var averagePosition = positionSum / sumCount;
-            var dirPosition = averagePosition - positions[index];
-            var seekForce = dirPosition - velocities[index];
+            var dirPosition = averagePosition - boids[index].Position;
+            var seekForce = dirPosition - boids[index].Velocity;
 
             return seekForce;
         }
 
-        private void BorderTreatment(
-            Vector3 boundary,
-            int index
-        )
+        private static BoidsData BorderTreatment(BoidsData boids, Vector3 boundary)
         {
-            var pos = _positions[index];
-            var vel = _velocities[index];
+            var (pos, vel) = boids;
 
             if (pos.x > boundary.x)
             {
@@ -309,15 +296,17 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
                 vel = WithZ(vel, -vel.z);
             }
 
-            _positions[index] = pos;
-            _velocities[index] = vel;
+            return new BoidsData(pos, vel);
         }
 
-        private static Vector3 WithX(Vector3 vec, float x) => new(x, vec.y, vec.z);
+        private static Vector3 WithX(Vector3 vec, float x)
+            => new(x, vec.y, vec.z);
 
-        private static Vector3 WithY(Vector3 vec, float y) => new(vec.x, y, vec.z);
+        private static Vector3 WithY(Vector3 vec, float y)
+            => new(vec.x, y, vec.z);
 
-        private static Vector3 WithZ(Vector3 vec, float z) => new(vec.x, vec.y, z);
+        private static Vector3 WithZ(Vector3 vec, float z)
+            => new(vec.x, vec.y, z);
 
 
         /// <summary>
@@ -331,6 +320,9 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         private static bool WithinRange(Vector3 self, Vector3 target, float range)
             => (target - self).sqrMagnitude <= range * range;
 
+        private static bool WithinRange(BoidsData self, BoidsData target, float range)
+            => WithinRange(self.Position, target.Position, range);
+
         /// <summary>
         /// ベクトル長がmaxLengthを超えてたら
         /// 長さをmaxLengthに抑える関数
@@ -339,8 +331,16 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// <param name="maxLength">最大長</param>
         /// <returns>cropされたベクトル</returns>
         private static Vector3 LimitVector(Vector3 target, float maxLength)
-            => target.sqrMagnitude <= maxLength * maxLength ? target : target * (maxLength / target.sqrMagnitude);
+            => target.sqrMagnitude <= maxLength * maxLength
+                ? target
+                : target * (maxLength / target.sqrMagnitude);
 
+        /// <summary>
+        /// 範囲内の直方体の中で一様にランダムなベクトルを生成する
+        /// </summary>
+        /// <param name="min"></param>
+        /// <param name="max"></param>
+        /// <returns></returns>
         private static Vector3 RandomVector3(Vector3 min, Vector3 max)
             => new(
                 Random.Range(min.x, max.x),
