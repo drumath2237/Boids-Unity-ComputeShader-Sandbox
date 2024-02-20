@@ -8,24 +8,20 @@ namespace BoidsComputeShaderSandbox.Types
     {
         public Vector3 Position;
         public Vector3 Velocity;
-        public Vector3 Acceleration;
 
-        public BoidsData(Vector3 position, Vector3 velocity, Vector3 acceleration)
+        public BoidsData(Vector3 position, Vector3 velocity)
         {
             Position = position;
             Velocity = velocity;
-            Acceleration = acceleration;
         }
 
         public void Deconstruct(
             out Vector3 position,
-            out Vector3 velocity,
-            out Vector3 acceleration
+            out Vector3 velocity
         )
         {
             position = Position;
             velocity = Velocity;
-            acceleration = Acceleration;
         }
     }
 }
