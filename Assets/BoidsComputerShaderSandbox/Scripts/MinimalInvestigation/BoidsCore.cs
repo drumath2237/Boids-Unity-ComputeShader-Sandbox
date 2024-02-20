@@ -88,7 +88,15 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
 
         public void Update(float deltaTime, UpdateParams updateParams)
         {
-            var (_, _, _, boundarySize, maxVelocity, maxAcceleration, _, _) = updateParams;
+            var (_,
+                _,
+                _,
+                boundarySize,
+                maxVelocity,
+                maxAcceleration,
+                _,
+                _
+                ) = updateParams;
             for (var i = 0; i < Count; i++)
             {
                 _accelerations[i] =
@@ -124,14 +132,25 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             UpdateParams updateParams
         )
         {
-            var (alignWeight, separationWeight, cohesionWeight, _, _, _, insightRange, fleeThreshold)
-                = updateParams;
+            var (
+                alignWeight,
+                separationWeight,
+                cohesionWeight,
+                _,
+                _,
+                _,
+                insightRange,
+                fleeThreshold
+                ) = updateParams;
 
             var alignForce = AlignForce(positions, velocities, insightRange, index);
             var separationForce = SeparationForce(positions, velocities, insightRange, index, fleeThreshold);
             var cohesionForce = CohesionForce(positions, velocities, insightRange, index);
 
-            return alignForce * alignWeight + separationForce * separationWeight + cohesionForce * cohesionWeight;
+            return
+                alignForce * alignWeight
+                + separationForce * separationWeight
+                + cohesionForce * cohesionWeight;
         }
 
         /// <summary>
@@ -313,11 +332,14 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             _velocities[index] = vel;
         }
 
-        private static Vector3 WithX(Vector3 vec, float x) => new(x, vec.y, vec.z);
+        private static Vector3 WithX(Vector3 vec, float x)
+            => new(x, vec.y, vec.z);
 
-        private static Vector3 WithY(Vector3 vec, float y) => new(vec.x, y, vec.z);
+        private static Vector3 WithY(Vector3 vec, float y)
+            => new(vec.x, y, vec.z);
 
-        private static Vector3 WithZ(Vector3 vec, float z) => new(vec.x, vec.y, z);
+        private static Vector3 WithZ(Vector3 vec, float z)
+            => new(vec.x, vec.y, z);
 
 
         /// <summary>
@@ -339,7 +361,9 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// <param name="maxLength">最大長</param>
         /// <returns>cropされたベクトル</returns>
         private static Vector3 LimitVector(Vector3 target, float maxLength)
-            => target.sqrMagnitude <= maxLength * maxLength ? target : target * (maxLength / target.sqrMagnitude);
+            => target.sqrMagnitude <= maxLength * maxLength
+                ? target
+                : target * (maxLength / target.sqrMagnitude);
 
         private static Vector3 RandomVector3(Vector3 min, Vector3 max)
             => new(
