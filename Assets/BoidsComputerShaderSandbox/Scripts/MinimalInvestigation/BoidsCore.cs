@@ -61,10 +61,7 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
 
     public class BoidsCore
     {
-        private readonly BoidsData[] _boids;
-        public BoidsData[] Boids => _boids;
-
-
+        public BoidsData[] Boids { get; }
         public int Count { get; }
 
         public BoidsCore(BoidsOptions options)
@@ -72,12 +69,12 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             var (count, initPositionRange, maxVelocity, _) = options;
             Count = count;
 
-            _boids = new BoidsData[Count];
+            Boids = new BoidsData[Count];
 
             for (var i = 0; i < Count; i++)
             {
                 var maxVelocity3 = new Vector3(maxVelocity, maxVelocity, maxVelocity);
-                _boids[i] = new BoidsData
+                Boids[i] = new BoidsData
                 {
                     Position = RandomVector3(-initPositionRange, initPositionRange),
                     Velocity = RandomVector3(-maxVelocity3, maxVelocity3)
@@ -99,20 +96,20 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             for (var i = 0; i < Count; i++)
             {
                 accelerations[i] =
-                    CalcIndividualAccChange(_boids.AsSpan(), i, updateParams);
+                    CalcIndividualForce(Boids.AsSpan(), i, updateParams);
             }
 
             for (var i = 0; i < Count; i++)
             {
                 accelerations[i] = LimitVector(accelerations[i], maxAcceleration);
 
-                var vel = _boids[i].Velocity + accelerations[i] * deltaTime;
+                var vel = Boids[i].Velocity + accelerations[i] * deltaTime;
                 vel = LimitVector(vel, maxVelocity);
 
-                var pos = _boids[i].Position + vel * deltaTime;
+                var pos = Boids[i].Position + vel * deltaTime;
 
                 var boidsData = new BoidsData(pos, vel);
-                _boids[i] = BorderTreatment(boidsData, boundarySize);
+                Boids[i] = BorderTreatment(boidsData, boundarySize);
             }
         }
 
@@ -120,11 +117,11 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// 個別のboidに対してシミュレーションの更新を行い
         /// 次のフレームの加速度を出力する関数
         /// </summary>
-        /// <param name="boids"></param>
+        /// <param name="boids">Boids全体</param>
         /// <param name="index">計算対象のboidsのindex</param>
-        /// <param name="updateParams"></param>
+        /// <param name="updateParams">Updateパラメータ</param>
         /// <returns></returns>
-        private static Vector3 CalcIndividualAccChange(
+        private static Vector3 CalcIndividualForce(
             ReadOnlySpan<BoidsData> boids,
             int index,
             UpdateParams updateParams
@@ -152,9 +149,9 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// <summary>
         /// 整列。影響範囲の平均速度ベクトルへの自分の速度ベクトルへの差分を算出する
         /// </summary>
-        /// <param name="boids"></param>
-        /// <param name="range"></param>
-        /// <param name="index"></param>
+        /// <param name="boids">Boids全体</param>
+        /// <param name="range">影響範囲の半径</param>
+        /// <param name="index">対象のBoidsのインデックス</param>
         /// <returns>整列処理によって算出されたaccの差分</returns>
         private static Vector3 AlignForce(
             ReadOnlySpan<BoidsData> boids,
@@ -189,10 +186,10 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// 範囲内の中のさらに分離閾値内にあるboidに対して
         /// 回避するような加速度を算出する。
         /// </summary>
-        /// <param name="boids"></param>
-        /// <param name="range"></param>
-        /// <param name="index"></param>
-        /// <param name="separationThreshold"></param>
+        /// <param name="boids">Boids全体</param>
+        /// <param name="range">影響範囲の半径</param>
+        /// <param name="index">計算対象のBoidsのインデックス</param>
+        /// <param name="separationThreshold">分離が行われる近さの閾値</param>
         /// <returns></returns>
         private static Vector3 SeparationForce(
             ReadOnlySpan<BoidsData> boids,
@@ -227,9 +224,9 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
         /// 範囲内の平均Positionに対して近づいていくような
         /// 加速度を算出する。
         /// </summary>
-        /// <param name="boids"></param>
-        /// <param name="range"></param>
-        /// <param name="index"></param>
+        /// <param name="boids">Boids全体</param>
+        /// <param name="range">影響範囲の半径</param>
+        /// <param name="index">計算対象のBoidsのインデックス</param>
         /// <returns></returns>
         private static Vector3 CohesionForce(
             ReadOnlySpan<BoidsData> boids,
@@ -262,10 +259,7 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
             return seekForce;
         }
 
-        private static BoidsData BorderTreatment(
-            BoidsData boids,
-            Vector3 boundary
-        )
+        private static BoidsData BorderTreatment(BoidsData boids, Vector3 boundary)
         {
             var (pos, vel) = boids;
 
@@ -341,6 +335,12 @@ namespace BoidsComputeShaderSandbox.MinimalInvestigation
                 ? target
                 : target * (maxLength / target.sqrMagnitude);
 
+        /// <summary>
+        /// 範囲内の直方体の中で一様にランダムなベクトルを生成する
+        /// </summary>
+        /// <param name="min"></param>
+        /// <param name="max"></param>
+        /// <returns></returns>
         private static Vector3 RandomVector3(Vector3 min, Vector3 max)
             => new(
                 Random.Range(min.x, max.x),
