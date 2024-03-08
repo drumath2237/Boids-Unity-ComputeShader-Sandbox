@@ -1,0 +1,14 @@
+﻿#pragma kernel CSMain
+
+struct BoidsData
+{
+    float3 position;
+    float3 velocity;
+};
+
+RWStructuredBuffer<BoidsData> boidsData;
+
+[numthreads(4,1,1)]
+void CSMain()
+{
+}
