@@ -6,9 +6,12 @@ struct BoidsData
     float3 velocity;
 };
 
+float3 fillVec;
 RWStructuredBuffer<BoidsData> boidsData;
 
-[numthreads(4,1,1)]
-void CSMain()
+[numthreads(64,1,1)]
+void CSMain(uint3 id:SV_DispatchThreadID)
 {
+    boidsData[id.x].position = fillVec;
+    boidsData[id.x].velocity = fillVec;
 }
