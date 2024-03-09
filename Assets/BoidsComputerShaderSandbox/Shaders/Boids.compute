@@ -7,6 +7,11 @@ struct BoidsData
 };
 
 float3 fillVec;
+
+float alignWeight;
+float separationWeight;
+float cohesionWeight;
+
 RWStructuredBuffer<BoidsData> boidsData;
 
 [numthreads(64,1,1)]
@@ -14,4 +19,90 @@ void CSMain(uint3 id:SV_DispatchThreadID)
 {
     boidsData[id.x].position = fillVec;
     boidsData[id.x].velocity = fillVec;
+}
+
+bool WithinRange(const BoidsData self, const BoidsData other, const float range)
+{
+    const float3 dir = other.position - self.position;
+    return dot(dir, dir) < range * range;
+}
+
+
+float3 AlignForce(const float effectRange, const int index)
+{
+    return float3(0, 0, 0);
+}
+
+float3 SeparationForce(const float effectRange, const int index)
+{
+    return float3(0, 0, 0);
+}
+
+/// \brief 結合処理
+/// \param effectRange 計算対象となるboidsの範囲
+/// \param index 加速度の計算対象のboidsのindex
+/// \return 加速度
+float3 CohesionForce(const float effectRange, const int index)
+{
+    return float3(0, 0, 0);
+}
+
+/// \brief 境界処理
+/// \param boid boid
+/// \param boundary 境界
+/// \return 境界処理を行ったboid
+BoidsData BorderTreatment(const BoidsData boid, const float3 boundary)
+{
+    float3 pos = boid.position;
+    float3 vel = boid.velocity;
+
+    if (pos.x > boundary.x)
+    {
+        pos.x = boundary.x;
+        vel = -vel;
+    }
+    else if (pos.x < -boundary.x)
+    {
+        pos.x = -boundary.x;
+        vel = -vel;
+    }
+
+    if (pos.y > boundary.y)
+    {
+        pos.y = boundary.y;
+        vel = -vel;
+    }
+    else if (pos.y < -boundary.y)
+    {
+        pos.y = -boundary.y;
+        vel = -vel;
+    }
+
+    if (pos.z > boundary.z)
+    {
+        pos.z = boundary.z;
+        vel = -vel;
+    }
+    else if (pos.z < -boundary.z)
+    {
+        pos.z = -boundary.z;
+        vel = -vel;
+    }
+
+    BoidsData result;
+    result.position = pos;
+    result.velocity = vel;
+
+    return result;
+}
+
+float3 CalcIndividualForce(const float range, const float index)
+{
+    const float3 align = AlignForce(range, index);
+    const float3 separation = SeparationForce(range, index);
+    const float3 cohesion = CohesionForce(range, index);
+
+    return alignWeight * align
+        + separationWeight * separation
+        + cohesionWeight * cohesion;
 }
