@@ -6,15 +6,15 @@ struct BoidsData
     float3 velocity;
 };
 
-float3 fillVec;
-
 float effectRange;
 int boidsCount;
 float3 boundary;
+float deltaTime;
 
 float maxVelocity;
 float maxAcceleration;
 
+float fleeThreshold;
 float alignWeight;
 float separationWeight;
 float cohesionWeight;
@@ -126,11 +126,10 @@ void CSMain(const uint3 id:SV_DispatchThreadID)
     float3 force = CalcIndividualForce(effectRange, id.x);
     force = LimitVector(force, maxAcceleration);
 
-    boid.velocity += force;
+    boid.velocity += force * deltaTime;
     boid.velocity = LimitVector(boid.velocity, maxVelocity);
 
-    boid.position += boid.velocity;
-
+    boid.position += boid.velocity * deltaTime;
     boid = BorderTreatment(boid, boundary);
 
     boidsData[id.x] = boid;

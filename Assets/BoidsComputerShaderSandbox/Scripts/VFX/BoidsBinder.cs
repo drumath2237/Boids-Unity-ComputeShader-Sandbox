@@ -1,9 +1,10 @@
 ﻿using System.Runtime.InteropServices;
-using BoidsComputeShaderSandbox.MinimalInvestigation;
 using BoidsComputeShaderSandbox.Types;
+using Unity.Collections;
 using UnityEngine;
 using UnityEngine.VFX;
 using UnityEngine.VFX.Utility;
+using Random = UnityEngine.Random;
 
 namespace BoidsComputeShaderSandbox.VFX
 {
@@ -15,6 +16,10 @@ namespace BoidsComputeShaderSandbox.VFX
 
         [VFXPropertyBinding("System.Int32")]
         public ExposedProperty boidsCountProperty;
+
+        [Header("Init Info")]
+        [SerializeField]
+        private ComputeShader boidsComputeShader;
 
         [SerializeField]
         private int boidsCount;
@@ -48,32 +53,50 @@ namespace BoidsComputeShaderSandbox.VFX
         [SerializeField]
         private float cohesionWeight = 1f;
 
-        private BoidsCore _boidsCore;
-
         private GraphicsBuffer _boidsGraphicsBuffer;
+        private static readonly int Data = Shader.PropertyToID("boidsData");
+        private static readonly int BoidsCount = Shader.PropertyToID("boidsCount");
+        private int? _csMainKernel;
 
         protected override void OnEnable()
         {
             base.OnEnable();
 
-            _boidsCore = new BoidsCore(new BoidsOptions
-            {
-                Count = boidsCount,
-                InitPositionRange = boundarySize,
-                InitMaxAcceleration = maxAcceleration,
-                InitMaxVelocity = maxVelocity
-            });
+            Vector3 RandomVector3(Vector3 min, Vector3 max) => new(
+                Random.Range(min.x, max.x),
+                Random.Range(min.y, max.y),
+                Random.Range(min.z, max.z)
+            );
 
-            // var count = Marshal.SizeOf<BoidsData>() * boidsCount;
+            Vector3 CreateVector3(float val) => new(val, val, val);
+
+            var boidsDataArray = new NativeArray<BoidsData>(boidsCount, Allocator.Temp);
+            for (var i = 0; i < boidsCount; i++)
+            {
+                boidsDataArray[i] = new BoidsData
+                {
+                    Velocity = RandomVector3(CreateVector3(-maxVelocity), CreateVector3(maxVelocity)),
+                    Position = RandomVector3(-boundarySize, boundarySize)
+                };
+            }
+
             _boidsGraphicsBuffer =
                 new GraphicsBuffer(GraphicsBuffer.Target.Structured, boidsCount, Marshal.SizeOf<BoidsData>());
+            _boidsGraphicsBuffer.SetData(boidsDataArray);
+
+            _csMainKernel = boidsComputeShader.FindKernel("CSMain");
+
+            boidsComputeShader.SetInt(BoidsCount, boidsCount);
+            boidsComputeShader.SetBuffer(_csMainKernel.Value, Data, _boidsGraphicsBuffer);
+
+
+            boidsDataArray.Dispose();
         }
 
         protected override void OnDisable()
         {
             base.OnDisable();
 
-            _boidsCore = null;
             _boidsGraphicsBuffer?.Release();
             _boidsGraphicsBuffer?.Dispose();
             _boidsGraphicsBuffer = null;
@@ -84,32 +107,30 @@ namespace BoidsComputeShaderSandbox.VFX
             var isCountValid = boidsCount > 0;
             var isPropertyExist = component.HasGraphicsBuffer(boidsBufferProperty)
                                   && component.HasInt(boidsCountProperty);
+            var isComputeShaderValid = boidsComputeShader != null
+                                       && boidsComputeShader.HasKernel("CSMain");
 
-            return isCountValid && isPropertyExist;
+            return isCountValid
+                   && isPropertyExist
+                   && isComputeShaderValid
+                ;
         }
 
         public override void UpdateBinding(VisualEffect component)
         {
             component.SetInt(boidsCountProperty, boidsCount);
 
-            _boidsCore.Update(Time.deltaTime * timeScale, new UpdateParams
-            {
-                InsightRange = insightRange,
-                MaxVelocity = maxVelocity,
-                MaxAcceleration = maxAcceleration,
-                BoundarySize = boundarySize,
-                FleeThreshold = fleeThreshold,
-                AlignWeight = alignWeight,
-                SeparationWeight = separationWeight,
-                CohesionWeight = cohesionWeight
-            });
-
-            if (_boidsGraphicsBuffer == null)
+            if (_boidsGraphicsBuffer == null || _csMainKernel == null)
             {
                 return;
             }
 
-            _boidsGraphicsBuffer.SetData(_boidsCore.Boids);
+            // todo: update処理を実行
+            // boidsComputeShader.SetVector(~~);
+            boidsComputeShader.GetKernelThreadGroupSizes(_csMainKernel.Value, out var x, out _, out _);
+            boidsComputeShader.Dispatch(_csMainKernel.Value, boidsCount / (int)x, 1, 1);
+
+            // _boidsGraphicsBuffer.SetData(_boidsCore.Boids);
             component.SetGraphicsBuffer(boidsBufferProperty, _boidsGraphicsBuffer);
         }
 
