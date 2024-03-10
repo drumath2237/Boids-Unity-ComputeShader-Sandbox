@@ -8,18 +8,18 @@ struct BoidsData
 
 float3 fillVec;
 
+float effectRange;
+int boidsCount;
+float3 boundary;
+
+float maxVelocity;
+float maxAcceleration;
+
 float alignWeight;
 float separationWeight;
 float cohesionWeight;
 
 RWStructuredBuffer<BoidsData> boidsData;
-
-[numthreads(64,1,1)]
-void CSMain(uint3 id:SV_DispatchThreadID)
-{
-    boidsData[id.x].position = fillVec;
-    boidsData[id.x].velocity = fillVec;
-}
 
 bool WithinRange(const BoidsData self, const BoidsData other, const float range)
 {
@@ -27,6 +27,14 @@ bool WithinRange(const BoidsData self, const BoidsData other, const float range)
     return dot(dir, dir) < range * range;
 }
 
+/// \brief ベクトル長を特定の長さに制限する関数
+/// \param vec 3次元ベクトル
+/// \param length 制限する長さ
+/// \return 制限処理を行った後のベクトル。長さが0であればそのまま返す
+float3 LimitVector(const float3 vec, const float length)
+{
+    return dot(vec, vec) == 0 ? vec : normalize(vec) * length;
+}
 
 float3 AlignForce(const float effectRange, const int index)
 {
@@ -105,4 +113,22 @@ float3 CalcIndividualForce(const float range, const float index)
     return alignWeight * align
         + separationWeight * separation
         + cohesionWeight * cohesion;
+}
+
+[numthreads(64,1,1)]
+void CSMain(const uint3 id:SV_DispatchThreadID)
+{
+    BoidsData boid = boidsData[id.x];
+
+    float3 force = CalcIndividualForce(effectRange, id.x);
+    force = LimitVector(force, maxAcceleration);
+
+    boid.velocity += force;
+    boid.velocity = LimitVector(boid.velocity, maxVelocity);
+
+    boid.position += boid.velocity;
+
+    boid = BorderTreatment(boid, boundary);
+
+    boidsData[id.x] = boid;
 }
