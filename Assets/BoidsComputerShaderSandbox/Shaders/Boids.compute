@@ -38,11 +38,13 @@ float3 LimitVector(const float3 vec, const float length)
 
 float3 AlignForce(const float effectRange, const int index)
 {
+    // todo: 実装する
     return float3(0, 0, 0);
 }
 
 float3 SeparationForce(const float effectRange, const int index)
 {
+    // todo: 実装する
     return float3(0, 0, 0);
 }
 
@@ -52,6 +54,7 @@ float3 SeparationForce(const float effectRange, const int index)
 /// \return 加速度
 float3 CohesionForce(const float effectRange, const int index)
 {
+    // todo: 実装する
     return float3(0, 0, 0);
 }
 
