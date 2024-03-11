@@ -21,6 +21,8 @@ float cohesionWeight;
 
 RWStructuredBuffer<BoidsData> boidsData;
 
+const float3 ZeroVector3 = float3(0, 0, 0);
+
 bool WithinRange(const BoidsData self, const BoidsData other, const float range)
 {
     const float3 dir = other.position - self.position;
@@ -36,13 +38,31 @@ float3 LimitVector(const float3 vec, const float length)
     return dot(vec, vec) == 0 ? vec : normalize(vec) * length;
 }
 
-float3 AlignForce(const float effectRange, const int index)
+float3 AlignForce(const int index)
 {
-    // todo: 実装する
-    return float3(0, 0, 0);
+    const BoidsData self = boidsData[index];
+
+    float3 sumVelocity = ZeroVector3;
+    int count = 0;
+
+    for (int i = 0; i < boidsCount; i++)
+    {
+        const bool shouldCompute = i != index && WithinRange(self, boidsData[i], effectRange);
+
+        sumVelocity += shouldCompute ? boidsData[i].velocity : ZeroVector3;
+        count += shouldCompute ? 1 : 0;
+    }
+
+    if (count == 0)
+    {
+        return ZeroVector3;
+    }
+
+    const float3 avgVelocity = sumVelocity / count;
+    return avgVelocity - self.velocity;
 }
 
-float3 SeparationForce(const float effectRange, const int index)
+float3 SeparationForce(const int index)
 {
     // todo: 実装する
     return float3(0, 0, 0);
@@ -52,7 +72,7 @@ float3 SeparationForce(const float effectRange, const int index)
 /// \param effectRange 計算対象となるboidsの範囲
 /// \param index 加速度の計算対象のboidsのindex
 /// \return 加速度
-float3 CohesionForce(const float effectRange, const int index)
+float3 CohesionForce(const int index)
 {
     // todo: 実装する
     return float3(0, 0, 0);
@@ -107,11 +127,11 @@ BoidsData BorderTreatment(const BoidsData boid, const float3 boundary)
     return result;
 }
 
-float3 CalcIndividualForce(const float range, const float index)
+float3 CalcIndividualForce(const float index)
 {
-    const float3 align = AlignForce(range, index);
-    const float3 separation = SeparationForce(range, index);
-    const float3 cohesion = CohesionForce(range, index);
+    const float3 align = AlignForce(index);
+    const float3 separation = SeparationForce(index);
+    const float3 cohesion = CohesionForce(index);
 
     return alignWeight * align
         + separationWeight * separation
@@ -123,7 +143,7 @@ void CSMain(const uint3 id:SV_DispatchThreadID)
 {
     BoidsData boid = boidsData[id.x];
 
-    float3 force = CalcIndividualForce(effectRange, id.x);
+    float3 force = CalcIndividualForce(id.x);
     force = LimitVector(force, maxAcceleration);
 
     boid.velocity += force * deltaTime;
