@@ -1,9 +1,10 @@
 ﻿using System.Runtime.InteropServices;
-using BoidsComputeShaderSandbox.MinimalInvestigation;
 using BoidsComputeShaderSandbox.Types;
+using Unity.Collections;
 using UnityEngine;
 using UnityEngine.VFX;
 using UnityEngine.VFX.Utility;
+using Random = UnityEngine.Random;
 
 namespace BoidsComputeShaderSandbox.VFX
 {
@@ -15,6 +16,10 @@ namespace BoidsComputeShaderSandbox.VFX
 
         [VFXPropertyBinding("System.Int32")]
         public ExposedProperty boidsCountProperty;
+
+        [Header("Init Info")]
+        [SerializeField]
+        private ComputeShader boidsComputeShader;
 
         [SerializeField]
         private int boidsCount;
@@ -48,32 +53,61 @@ namespace BoidsComputeShaderSandbox.VFX
         [SerializeField]
         private float cohesionWeight = 1f;
 
-        private BoidsCore _boidsCore;
-
         private GraphicsBuffer _boidsGraphicsBuffer;
+        private int? _csMainKernel;
+
+        private static readonly int Data = Shader.PropertyToID("boidsData");
+
+        private static readonly int BoidsCount = Shader.PropertyToID("boidsCount");
+        private static readonly int EffectRange = Shader.PropertyToID("effectRange");
+        private static readonly int MaxVelocity = Shader.PropertyToID("maxVelocity");
+        private static readonly int MaxAcceleration = Shader.PropertyToID("maxAcceleration");
+        private static readonly int Boundary = Shader.PropertyToID("boundary");
+        private static readonly int DeltaTime = Shader.PropertyToID("deltaTime");
+
+        private static readonly int FleeThreshold = Shader.PropertyToID("fleeThreshold");
+        private static readonly int AlignWeight = Shader.PropertyToID("alignWeight");
+        private static readonly int SeparationWeight = Shader.PropertyToID("separationWeight");
+        private static readonly int CohesionWeight = Shader.PropertyToID("cohesionWeight");
 
         protected override void OnEnable()
         {
             base.OnEnable();
 
-            _boidsCore = new BoidsCore(new BoidsOptions
-            {
-                Count = boidsCount,
-                InitPositionRange = boundarySize,
-                InitMaxAcceleration = maxAcceleration,
-                InitMaxVelocity = maxVelocity
-            });
+            Vector3 RandomVector3(Vector3 min, Vector3 max) => new(
+                Random.Range(min.x, max.x),
+                Random.Range(min.y, max.y),
+                Random.Range(min.z, max.z)
+            );
 
-            // var count = Marshal.SizeOf<BoidsData>() * boidsCount;
+            Vector3 CreateVector3(float val) => new(val, val, val);
+
+            var boidsDataArray = new NativeArray<BoidsData>(boidsCount, Allocator.Temp);
+            for (var i = 0; i < boidsCount; i++)
+            {
+                boidsDataArray[i] = new BoidsData
+                {
+                    Velocity = RandomVector3(CreateVector3(-maxVelocity), CreateVector3(maxVelocity)),
+                    Position = RandomVector3(-boundarySize, boundarySize)
+                };
+            }
+
             _boidsGraphicsBuffer =
                 new GraphicsBuffer(GraphicsBuffer.Target.Structured, boidsCount, Marshal.SizeOf<BoidsData>());
+            _boidsGraphicsBuffer.SetData(boidsDataArray);
+
+            _csMainKernel = boidsComputeShader.FindKernel("CSMain");
+
+            boidsComputeShader.SetInt(BoidsCount, boidsCount);
+            boidsComputeShader.SetBuffer(_csMainKernel.Value, Data, _boidsGraphicsBuffer);
+
+            boidsDataArray.Dispose();
         }
 
         protected override void OnDisable()
         {
             base.OnDisable();
 
-            _boidsCore = null;
             _boidsGraphicsBuffer?.Release();
             _boidsGraphicsBuffer?.Dispose();
             _boidsGraphicsBuffer = null;
@@ -84,32 +118,46 @@ namespace BoidsComputeShaderSandbox.VFX
             var isCountValid = boidsCount > 0;
             var isPropertyExist = component.HasGraphicsBuffer(boidsBufferProperty)
                                   && component.HasInt(boidsCountProperty);
+            var isComputeShaderValid = boidsComputeShader != null
+                                       && boidsComputeShader.HasKernel("CSMain");
 
-            return isCountValid && isPropertyExist;
+            if (_csMainKernel == null)
+            {
+                return false;
+            }
+
+            boidsComputeShader.GetKernelThreadGroupSizes(_csMainKernel.Value, out var x, out _, out _);
+            var isBoidsCountCanDivideWithNumThreads = boidsCount % x == 0;
+
+            return isCountValid
+                   && isPropertyExist
+                   && isComputeShaderValid
+                   && isBoidsCountCanDivideWithNumThreads
+                ;
         }
 
         public override void UpdateBinding(VisualEffect component)
         {
             component.SetInt(boidsCountProperty, boidsCount);
 
-            _boidsCore.Update(Time.deltaTime * timeScale, new UpdateParams
-            {
-                InsightRange = insightRange,
-                MaxVelocity = maxVelocity,
-                MaxAcceleration = maxAcceleration,
-                BoundarySize = boundarySize,
-                FleeThreshold = fleeThreshold,
-                AlignWeight = alignWeight,
-                SeparationWeight = separationWeight,
-                CohesionWeight = cohesionWeight
-            });
-
-            if (_boidsGraphicsBuffer == null)
+            if (_boidsGraphicsBuffer == null || _csMainKernel == null)
             {
                 return;
             }
 
-            _boidsGraphicsBuffer.SetData(_boidsCore.Boids);
+            boidsComputeShader.SetFloat(EffectRange, insightRange);
+            boidsComputeShader.SetFloat(MaxVelocity, maxVelocity);
+            boidsComputeShader.SetFloat(MaxAcceleration, maxAcceleration);
+            boidsComputeShader.SetVector(Boundary, boundarySize);
+            boidsComputeShader.SetFloat(DeltaTime, Time.deltaTime * timeScale);
+            boidsComputeShader.SetFloat(FleeThreshold, fleeThreshold);
+            boidsComputeShader.SetFloat(AlignWeight, alignWeight);
+            boidsComputeShader.SetFloat(SeparationWeight, separationWeight);
+            boidsComputeShader.SetFloat(CohesionWeight, cohesionWeight);
+
+            boidsComputeShader.GetKernelThreadGroupSizes(_csMainKernel.Value, out var x, out _, out _);
+            boidsComputeShader.Dispatch(_csMainKernel.Value, boidsCount / (int)x, 1, 1);
+
             component.SetGraphicsBuffer(boidsBufferProperty, _boidsGraphicsBuffer);
         }
 

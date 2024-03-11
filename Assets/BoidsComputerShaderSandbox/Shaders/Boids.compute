@@ -1,0 +1,201 @@
+﻿#pragma kernel CSMain
+
+struct BoidsData
+{
+    float3 position;
+    float3 velocity;
+};
+
+int boidsCount;
+
+float effectRange;
+float maxVelocity;
+float maxAcceleration;
+float3 boundary;
+float deltaTime;
+
+float fleeThreshold;
+float alignWeight;
+float separationWeight;
+float cohesionWeight;
+
+RWStructuredBuffer<BoidsData> boidsData;
+
+const float3 ZeroVector3 = float3(0, 0, 0);
+
+bool WithinRange(const BoidsData self, const BoidsData other, const float range)
+{
+    const float3 dir = other.position - self.position;
+    return dot(dir, dir) < range * range;
+}
+
+/// \brief ベクトル長を特定の長さに制限する関数
+/// \param vec 3次元ベクトル
+/// \param length 制限する長さ
+/// \return 制限処理を行った後のベクトル。長さが0であればそのまま返す
+float3 LimitVector(const float3 vec, const float length)
+{
+    return dot(vec, vec) == 0 ? vec : normalize(vec) * length;
+}
+
+float3 AlignForce(const int index)
+{
+    const BoidsData self = boidsData[index];
+
+    float3 sumVelocity = ZeroVector3;
+    int count = 0;
+
+    for (int i = 0; i < boidsCount; i++)
+    {
+        const bool shouldCompute = i != index && WithinRange(self, boidsData[i], effectRange);
+
+        sumVelocity += shouldCompute ? boidsData[i].velocity : ZeroVector3;
+        count += shouldCompute ? 1 : 0;
+    }
+
+    if (count == 0)
+    {
+        return ZeroVector3;
+    }
+
+    const float3 avgVelocity = sumVelocity / count;
+    return avgVelocity - self.velocity;
+}
+
+float3 SeparationForce(const int index)
+{
+    const BoidsData self = boidsData[index];
+
+    float3 fleeForce = ZeroVector3;
+    for (int i = 0; i < boidsCount; i++)
+    {
+        const BoidsData other = boidsData[i];
+        const bool shouldCompute = i != index && WithinRange(self, other, effectRange);
+        if (!shouldCompute)
+        {
+            continue;
+        }
+
+        const float3 dirPosition = other.position - self.position;
+        if (dot(dirPosition, dirPosition) >= fleeThreshold * fleeThreshold)
+        {
+            continue;
+        }
+        fleeForce += -(dirPosition - self.velocity);
+    }
+
+    return fleeForce;
+}
+
+/// \brief 結合処理
+/// \param effectRange 計算対象となるboidsの範囲
+/// \param index 加速度の計算対象のboidsのindex
+/// \return 加速度
+float3 CohesionForce(const int index)
+{
+    const BoidsData self = boidsData[index];
+
+    float3 sumPosition = ZeroVector3;
+    int count = 0;
+
+    for (int i = 0; i < boidsCount; i++)
+    {
+        const BoidsData other = boidsData[i];
+        const bool shouldCompute = i != index && WithinRange(self, other, effectRange);
+        if (!shouldCompute)
+        {
+            continue;
+        }
+
+        sumPosition += other.position;
+        count++;
+    }
+
+    if (count == 0)
+    {
+        return ZeroVector3;
+    }
+
+    const float3 avgPosition = sumPosition / count;
+    const float3 dirPosition = avgPosition - self.position;
+    const float3 seekForce = dirPosition - self.velocity;
+
+    return seekForce;
+}
+
+/// \brief 境界処理
+/// \param boid boid
+/// \param boundary 境界
+/// \return 境界処理を行ったboid
+BoidsData BorderTreatment(const BoidsData boid, const float3 boundary)
+{
+    float3 pos = boid.position;
+    float3 vel = boid.velocity;
+
+    if (pos.x > boundary.x)
+    {
+        pos.x = boundary.x;
+        vel.x = -vel.x;
+    }
+    else if (pos.x < -boundary.x)
+    {
+        pos.x = -boundary.x;
+        vel.x = -vel.x;
+    }
+
+    if (pos.y > boundary.y)
+    {
+        pos.y = boundary.y;
+        vel.y = -vel.y;
+    }
+    else if (pos.y < -boundary.y)
+    {
+        pos.y = -boundary.y;
+        vel.y = -vel.y;
+    }
+
+    if (pos.z > boundary.z)
+    {
+        pos.z = boundary.z;
+        vel.z = -vel.z;
+    }
+    else if (pos.z < -boundary.z)
+    {
+        pos.z = -boundary.z;
+        vel.z = -vel.z;
+    }
+
+    BoidsData result;
+    result.position = pos;
+    result.velocity = vel;
+
+    return result;
+}
+
+float3 CalcIndividualForce(const float index)
+{
+    const float3 align = AlignForce(index);
+    const float3 separation = SeparationForce(index);
+    const float3 cohesion = CohesionForce(index);
+
+    return alignWeight * align
+        + separationWeight * separation
+        + cohesionWeight * cohesion;
+}
+
+[numthreads(64,1,1)]
+void CSMain(const uint3 id:SV_DispatchThreadID)
+{
+    BoidsData boid = boidsData[id.x];
+
+    float3 force = CalcIndividualForce(id.x);
+    force = LimitVector(force, maxAcceleration);
+
+    boid.velocity += force * deltaTime;
+    boid.velocity = LimitVector(boid.velocity, maxVelocity);
+
+    boid.position += boid.velocity * deltaTime;
+    boid = BorderTreatment(boid, boundary);
+
+    boidsData[id.x] = boid;
+}
