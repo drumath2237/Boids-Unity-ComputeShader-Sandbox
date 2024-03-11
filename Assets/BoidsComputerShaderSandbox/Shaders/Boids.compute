@@ -64,8 +64,27 @@ float3 AlignForce(const int index)
 
 float3 SeparationForce(const int index)
 {
-    // todo: 実装する
-    return float3(0, 0, 0);
+    const BoidsData self = boidsData[index];
+
+    float3 fleeForce = ZeroVector3;
+    for (int i = 0; i < boidsCount; i++)
+    {
+        const BoidsData other = boidsData[i];
+        const bool shouldCompute = i != index && WithinRange(self, other, effectRange);
+        if (!shouldCompute)
+        {
+            continue;
+        }
+
+        const float3 dirPosition = other.position - self.position;
+        if (dot(dirPosition, dirPosition) >= fleeThreshold * fleeThreshold)
+        {
+            continue;
+        }
+        fleeForce += -(dirPosition - self.velocity);
+    }
+
+    return fleeForce;
 }
 
 /// \brief 結合処理
@@ -74,8 +93,34 @@ float3 SeparationForce(const int index)
 /// \return 加速度
 float3 CohesionForce(const int index)
 {
-    // todo: 実装する
-    return float3(0, 0, 0);
+    const BoidsData self = boidsData[index];
+
+    float3 sumPosition = ZeroVector3;
+    int count = 0;
+
+    for (int i = 0; i < boidsCount; i++)
+    {
+        const BoidsData other = boidsData[i];
+        const bool shouldCompute = i != index && WithinRange(self, other, effectRange);
+        if (!shouldCompute)
+        {
+            continue;
+        }
+
+        sumPosition += other.position;
+        count++;
+    }
+
+    if (count == 0)
+    {
+        return ZeroVector3;
+    }
+
+    const float3 avgPosition = sumPosition / count;
+    const float3 dirPosition = avgPosition - self.position;
+    const float3 seekForce = dirPosition - self.velocity;
+
+    return seekForce;
 }
 
 /// \brief 境界処理
