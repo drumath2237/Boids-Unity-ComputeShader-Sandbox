@@ -155,8 +155,8 @@ Camera:
   m_GameObject: {fileID: 57833320}
   m_Enabled: 1
   serializedVersion: 2
-  m_ClearFlags: 1
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_ClearFlags: 2
+  m_BackGroundColor: {r: 0.12793697, g: 0.16256525, b: 0.21698111, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -205,8 +205,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 57833320}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: -10}
+  m_LocalRotation: {x: 0.115617536, y: -0.4348299, z: 0.056406632, w: 0.89127654}
+  m_LocalPosition: {x: 44.500343, y: 12.76911, z: -36.971382}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -293,14 +293,14 @@ MonoBehaviour:
   boidsCountProperty:
     m_Name: BoidsCount
   boidsComputeShader: {fileID: 7200000, guid: 13dcc01f0e3b4a4eba0ede6338237876, type: 3}
-  boidsCount: 1024
-  insightRange: 4
-  maxVelocity: 5
-  maxAcceleration: 5
-  boundarySize: {x: 10, y: 10, z: 10}
+  boidsCount: 16384
+  insightRange: 6
+  maxVelocity: 4
+  maxAcceleration: 4
+  boundarySize: {x: 20, y: 20, z: 20}
   timeScale: 1
-  fleeThreshold: 0.75
-  alignWeight: 3
+  fleeThreshold: 1
+  alignWeight: 1
   separationWeight: 2
   cohesionWeight: 1
 --- !u!114 &1688785491
@@ -378,7 +378,10 @@ VisualEffect:
   m_ResourceVersion: 1
   m_PropertySheet:
     m_Float:
-      m_Array: []
+      m_Array:
+      - m_Value: 0.74
+        m_Name: ColorMultiplier
+        m_Overridden: 1
     m_Vector2f:
       m_Array: []
     m_Vector3f:
@@ -389,7 +392,7 @@ VisualEffect:
       m_Array: []
     m_Int:
       m_Array:
-      - m_Value: 1024
+      - m_Value: 16384
         m_Name: BoidsCount
         m_Overridden: 1
     m_Matrix4x4f:
