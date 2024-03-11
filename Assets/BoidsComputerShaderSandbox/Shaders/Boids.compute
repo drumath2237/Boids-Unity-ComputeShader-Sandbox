@@ -6,13 +6,13 @@ struct BoidsData
     float3 velocity;
 };
 
-float effectRange;
 int boidsCount;
-float3 boundary;
-float deltaTime;
 
+float effectRange;
 float maxVelocity;
 float maxAcceleration;
+float3 boundary;
+float deltaTime;
 
 float fleeThreshold;
 float alignWeight;
@@ -70,34 +70,34 @@ BoidsData BorderTreatment(const BoidsData boid, const float3 boundary)
     if (pos.x > boundary.x)
     {
         pos.x = boundary.x;
-        vel = -vel;
+        vel.x = -vel.x;
     }
     else if (pos.x < -boundary.x)
     {
         pos.x = -boundary.x;
-        vel = -vel;
+        vel.x = -vel.x;
     }
 
     if (pos.y > boundary.y)
     {
         pos.y = boundary.y;
-        vel = -vel;
+        vel.y = -vel.y;
     }
     else if (pos.y < -boundary.y)
     {
         pos.y = -boundary.y;
-        vel = -vel;
+        vel.y = -vel.y;
     }
 
     if (pos.z > boundary.z)
     {
         pos.z = boundary.z;
-        vel = -vel;
+        vel.z = -vel.z;
     }
     else if (pos.z < -boundary.z)
     {
         pos.z = -boundary.z;
-        vel = -vel;
+        vel.z = -vel.z;
     }
 
     BoidsData result;

@@ -54,9 +54,21 @@ namespace BoidsComputeShaderSandbox.VFX
         private float cohesionWeight = 1f;
 
         private GraphicsBuffer _boidsGraphicsBuffer;
-        private static readonly int Data = Shader.PropertyToID("boidsData");
-        private static readonly int BoidsCount = Shader.PropertyToID("boidsCount");
         private int? _csMainKernel;
+
+        private static readonly int Data = Shader.PropertyToID("boidsData");
+
+        private static readonly int BoidsCount = Shader.PropertyToID("boidsCount");
+        private static readonly int EffectRange = Shader.PropertyToID("effectRange");
+        private static readonly int MaxVelocity = Shader.PropertyToID("maxVelocity");
+        private static readonly int MaxAcceleration = Shader.PropertyToID("maxAcceleration");
+        private static readonly int Boundary = Shader.PropertyToID("boundary");
+        private static readonly int DeltaTime = Shader.PropertyToID("deltaTime");
+
+        private static readonly int FleeThreshold = Shader.PropertyToID("fleeThreshold");
+        private static readonly int AlignWeight = Shader.PropertyToID("alignWeight");
+        private static readonly int SeparationWeight = Shader.PropertyToID("separationWeight");
+        private static readonly int CohesionWeight = Shader.PropertyToID("cohesionWeight");
 
         protected override void OnEnable()
         {
@@ -89,7 +101,6 @@ namespace BoidsComputeShaderSandbox.VFX
             boidsComputeShader.SetInt(BoidsCount, boidsCount);
             boidsComputeShader.SetBuffer(_csMainKernel.Value, Data, _boidsGraphicsBuffer);
 
-
             boidsDataArray.Dispose();
         }
 
@@ -110,9 +121,18 @@ namespace BoidsComputeShaderSandbox.VFX
             var isComputeShaderValid = boidsComputeShader != null
                                        && boidsComputeShader.HasKernel("CSMain");
 
+            if (_csMainKernel == null)
+            {
+                return false;
+            }
+
+            boidsComputeShader.GetKernelThreadGroupSizes(_csMainKernel.Value, out var x, out _, out _);
+            var isBoidsCountCanDivideWithNumThreads = boidsCount % x == 0;
+
             return isCountValid
                    && isPropertyExist
                    && isComputeShaderValid
+                   && isBoidsCountCanDivideWithNumThreads
                 ;
         }
 
@@ -125,12 +145,19 @@ namespace BoidsComputeShaderSandbox.VFX
                 return;
             }
 
-            // todo: update処理を実行
-            // boidsComputeShader.SetVector(~~);
+            boidsComputeShader.SetFloat(EffectRange, insightRange);
+            boidsComputeShader.SetFloat(MaxVelocity, maxVelocity);
+            boidsComputeShader.SetFloat(MaxAcceleration, maxAcceleration);
+            boidsComputeShader.SetVector(Boundary, boundarySize);
+            boidsComputeShader.SetFloat(DeltaTime, Time.deltaTime * timeScale);
+            boidsComputeShader.SetFloat(FleeThreshold, fleeThreshold);
+            boidsComputeShader.SetFloat(AlignWeight, alignWeight);
+            boidsComputeShader.SetFloat(SeparationWeight, separationWeight);
+            boidsComputeShader.SetFloat(CohesionWeight, cohesionWeight);
+
             boidsComputeShader.GetKernelThreadGroupSizes(_csMainKernel.Value, out var x, out _, out _);
             boidsComputeShader.Dispatch(_csMainKernel.Value, boidsCount / (int)x, 1, 1);
 
-            // _boidsGraphicsBuffer.SetData(_boidsCore.Boids);
             component.SetGraphicsBuffer(boidsBufferProperty, _boidsGraphicsBuffer);
         }
 
