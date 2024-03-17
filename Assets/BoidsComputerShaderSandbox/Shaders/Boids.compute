@@ -1,4 +1,4 @@
-﻿#pragma kernel CSMain
+#pragma kernel CSMain
 
 struct BoidsData
 {
@@ -88,7 +88,6 @@ float3 SeparationForce(const int index)
 }
 
 /// \brief 結合処理
-/// \param effectRange 計算対象となるboidsの範囲
 /// \param index 加速度の計算対象のboidsのindex
 /// \return 加速度
 float3 CohesionForce(const int index)
