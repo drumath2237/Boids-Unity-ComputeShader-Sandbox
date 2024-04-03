@@ -23,6 +23,11 @@ RWStructuredBuffer<BoidsData> boidsData;
 
 const float3 ZeroVector3 = float3(0, 0, 0);
 
+/// \brief Boid同士が範囲にあるかを判定する関数
+/// \param self 基準となるBoid
+/// \param other 判定対象のBoid
+/// \param range 範囲
+/// \return 範囲内かどうかのbool
 bool WithinRange(const BoidsData self, const BoidsData other, const float range)
 {
     const float3 dir = other.position - self.position;
@@ -38,6 +43,9 @@ float3 LimitVector(const float3 vec, const float length)
     return dot(vec, vec) == 0 ? vec : normalize(vec) * length;
 }
 
+/// \brief 整列処理によって周りのBoidと速度を合わせるような加速度を計算
+/// \param index 計算対象のindex
+/// \return Align処理で計算された加速度
 float3 AlignForce(const int index)
 {
     const BoidsData self = boidsData[index];
@@ -48,9 +56,13 @@ float3 AlignForce(const int index)
     for (int i = 0; i < boidsCount; i++)
     {
         const bool shouldCompute = i != index && WithinRange(self, boidsData[i], effectRange);
+        if (!shouldCompute)
+        {
+            continue;
+        }
 
-        sumVelocity += shouldCompute ? boidsData[i].velocity : ZeroVector3;
-        count += shouldCompute ? 1 : 0;
+        sumVelocity += boidsData[i].velocity;
+        count++;
     }
 
     if (count == 0)
@@ -62,6 +74,9 @@ float3 AlignForce(const int index)
     return avgVelocity - self.velocity;
 }
 
+/// \brief 分離処理。周りのboidが近すぎた場合に回避するような加速度を計算
+/// \param index 計算対象のindex
+/// \return 分離処理を行った際の計算された加速度
 float3 SeparationForce(const int index)
 {
     const BoidsData self = boidsData[index];
@@ -87,8 +102,8 @@ float3 SeparationForce(const int index)
     return fleeForce;
 }
 
-/// \brief 結合処理
-/// \param index 加速度の計算対象のboidsのindex
+/// \brief 結合処理。周りのboidに近づくような加速度を計算
+/// \param index 計算対象のboidsのindex
 /// \return 加速度
 float3 CohesionForce(const int index)
 {
