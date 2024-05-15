@@ -53,6 +53,12 @@ namespace BoidsComputeShaderSandbox.VFX
         [SerializeField]
         private float cohesionWeight = 1f;
 
+        [SerializeField]
+        private float wallForceWight = 1f;
+
+        [SerializeField]
+        private float wallDistanceWeight = 1f;
+
         private GraphicsBuffer _boidsGraphicsBuffer;
         private int? _csMainKernel;
 
@@ -69,6 +75,8 @@ namespace BoidsComputeShaderSandbox.VFX
         private static readonly int AlignWeight = Shader.PropertyToID("alignWeight");
         private static readonly int SeparationWeight = Shader.PropertyToID("separationWeight");
         private static readonly int CohesionWeight = Shader.PropertyToID("cohesionWeight");
+        private static readonly int WallForceWeight = Shader.PropertyToID("wallForceWeight");
+        private static readonly int WallDistanceWeight = Shader.PropertyToID("wallDistanceWeight");
 
         protected override void OnEnable()
         {
@@ -154,6 +162,8 @@ namespace BoidsComputeShaderSandbox.VFX
             boidsComputeShader.SetFloat(AlignWeight, alignWeight);
             boidsComputeShader.SetFloat(SeparationWeight, separationWeight);
             boidsComputeShader.SetFloat(CohesionWeight, cohesionWeight);
+            boidsComputeShader.SetFloat(WallForceWeight, wallForceWight);
+            boidsComputeShader.SetFloat(WallDistanceWeight, wallDistanceWeight);
 
             boidsComputeShader.GetKernelThreadGroupSizes(_csMainKernel.Value, out var x, out _, out _);
             boidsComputeShader.Dispatch(_csMainKernel.Value, boidsCount / (int)x, 1, 1);

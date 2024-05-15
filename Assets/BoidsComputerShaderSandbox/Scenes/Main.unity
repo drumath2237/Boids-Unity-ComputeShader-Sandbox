@@ -293,16 +293,18 @@ MonoBehaviour:
   boidsCountProperty:
     m_Name: BoidsCount
   boidsComputeShader: {fileID: 7200000, guid: 13dcc01f0e3b4a4eba0ede6338237876, type: 3}
-  boidsCount: 1024
+  boidsCount: 17024
   insightRange: 6
-  maxVelocity: 4
-  maxAcceleration: 4
-  boundarySize: {x: 20, y: 20, z: 20}
+  maxVelocity: 3
+  maxAcceleration: 2.5
+  boundarySize: {x: 25, y: 25, z: 25}
   timeScale: 1
   fleeThreshold: 1
   alignWeight: 1
   separationWeight: 2
   cohesionWeight: 1
+  wallForceWight: 1.66
+  wallDistanceWeight: 4.2
 --- !u!114 &1688785491
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -379,7 +381,7 @@ VisualEffect:
   m_PropertySheet:
     m_Float:
       m_Array:
-      - m_Value: 0.74
+      - m_Value: 1.01
         m_Name: ColorMultiplier
         m_Overridden: 1
     m_Vector2f:
@@ -392,7 +394,7 @@ VisualEffect:
       m_Array: []
     m_Int:
       m_Array:
-      - m_Value: 1024
+      - m_Value: 17024
         m_Name: BoidsCount
         m_Overridden: 1
     m_Matrix4x4f:
