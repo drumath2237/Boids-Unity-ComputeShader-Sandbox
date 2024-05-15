@@ -18,6 +18,8 @@ float fleeThreshold;
 float alignWeight;
 float separationWeight;
 float cohesionWeight;
+float wallForceWeight;
+float wallDistanceWeight;
 
 RWStructuredBuffer<BoidsData> boidsData;
 
@@ -186,6 +188,18 @@ BoidsData BorderTreatment(const BoidsData boid, const float3 boundary)
     return result;
 }
 
+float3 WallForce(const int index, const float distanceWeight)
+{
+    BoidsData boid = boidsData[index];
+    return
+        float3(-1, 0, 0) / abs((boundary.x - boid.position.x) / distanceWeight)
+        + float3(1, 0, 0) / abs((-boundary.x - boid.position.x) / distanceWeight)
+        + float3(0, -1, 0) / abs((boundary.y - boid.position.y) / distanceWeight)
+        + float3(0, 1, 0) / abs((-boundary.y - boid.position.y) / distanceWeight)
+        + float3(0, 0, -1) / abs((boundary.z - boid.position.z) / distanceWeight)
+        + float3(0, 0, 1) / abs((-boundary.z - boid.position.z) / distanceWeight);
+}
+
 float3 CalcIndividualForce(const float index)
 {
     const float3 align = AlignForce(index);
@@ -205,11 +219,13 @@ void CSMain(const uint3 id:SV_DispatchThreadID)
     float3 force = CalcIndividualForce(id.x);
     force = LimitVector(force, maxAcceleration);
 
+    force += wallForceWeight * WallForce(id.x, wallDistanceWeight);
+
     boid.velocity += force * deltaTime;
     boid.velocity = LimitVector(boid.velocity, maxVelocity);
 
     boid.position += boid.velocity * deltaTime;
-    boid = BorderTreatment(boid, boundary);
+    // boid = BorderTreatment(boid, boundary);
 
     boidsData[id.x] = boid;
 }
